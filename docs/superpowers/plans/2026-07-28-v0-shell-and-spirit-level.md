@@ -94,7 +94,7 @@ git rm index.html
   "description": "A cabinet of instruments. No build step — typescript is a type checker only and emits nothing.",
   "scripts": {
     "types": "tsc -p jsconfig.json --noEmit",
-    "test": "node --test tests/",
+    "test": "node --test",
     "check": "npm run types && npm run test"
   },
   "devDependencies": {
@@ -2857,7 +2857,10 @@ npm run --silent types
 
 # Gate 2 — unit tests. The numbers are the product, so they are tested.
 echo "→ unit tests (node)"
-node --test tests/
+# Bare `node --test` auto-discovers test files and skips node_modules. Passing
+# a directory (`node --test tests/`) fails on Node 22+ — it resolves the path
+# as a module, not a directory.
+node --test
 
 echo "→ unit tests (python)"
 (cd tools && python3 -m unittest discover -p 'test_*.py' -q)
