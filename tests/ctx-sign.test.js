@@ -10,7 +10,9 @@ test('android values pass through untouched', () => {
 })
 
 test('ios values are negated into the W3C convention', () => {
-  assert.deepEqual(normaliseGravity({ x: 0, y: 0, z: -9.81 }, true), { x: -0, y: -0, z: 9.81 })
+  // Expected value is +0, not -0: normaliseGravity collapses negative zero to
+  // positive zero (see the exactly-zero-axis test below for why that matters).
+  assert.deepEqual(normaliseGravity({ x: 0, y: 0, z: -9.81 }, true), { x: 0, y: 0, z: 9.81 })
 })
 
 test('both platforms flat-screen-up produce a level reading', () => {
@@ -48,4 +50,15 @@ test('the platform-agreement test fails if iosSigns is ignored', () => {
   const iosIgnored = gravityToTilt(identity({ x: 0, y: -6.94, z: -6.94 }))
   assert.ok(!(iosIgnored.pitch > 44 && iosIgnored.pitch < 46), `expected ignoring iosSigns to break agreement, got pitch ${iosIgnored.pitch}`)
   assert.ok(android.pitch > 44 && android.pitch < 46)
+})
+
+test('platforms agree at orientations with an exactly-zero axis', () => {
+  // Top edge raised 90°: x and z are exactly zero, so a -0 leaking through
+  // would send atan2 into a different quadrant on one platform only.
+  const android = gravityToTilt(normaliseGravity({ x: 0, y: 9.81, z: 0 }, false))
+  const ios = gravityToTilt(normaliseGravity({ x: -0, y: -9.81, z: -0 }, true))
+  assert.equal(android.pitch, ios.pitch, 'pitch must agree across platforms')
+  assert.equal(android.roll, ios.roll, `roll must agree: android ${android.roll}, ios ${ios.roll}`)
+  assert.equal(Object.is(normaliseGravity({ x: -0, y: 0, z: 0 }, true).x, -0), false,
+    'normaliseGravity must never emit negative zero')
 })

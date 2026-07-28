@@ -21,11 +21,14 @@ import { readEnv, isIosSafari } from './capability.js'
  */
 export function normaliseGravity(raw, iosSigns) {
   const s = iosSigns ? -1 : 1
-  return {
-    x: s * (Number(raw?.x) || 0),
-    y: s * (Number(raw?.y) || 0),
-    z: s * (Number(raw?.z) || 0),
+  // Map -0 to +0. Negating a zero component yields -0, and Math.atan2 treats
+  // -0 as a different quadrant than +0 — so without this, iOS and Android
+  // disagree by 180° at any orientation where an axis reads exactly zero.
+  const norm = (/** @type {unknown} */ v) => {
+    const n = s * (Number(v) || 0)
+    return n === 0 ? 0 : n
   }
+  return { x: norm(raw?.x), y: norm(raw?.y), z: norm(raw?.z) }
 }
 
 /**
