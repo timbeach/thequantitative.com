@@ -62,7 +62,7 @@ accuracy; ornament reads as a toy, and a toy's numbers aren't believable.
 | `--hairline` | `#1e2227` | Rules, tick marks, card borders |
 | `--ink` | `#e8eaed` | Primary readouts |
 | `--ink-label` | `#8b9299` | Labels, units, secondary values |
-| `--ink-dim` | `#4d545c` | Disabled / unavailable |
+| `--ink-dim` | `#727c88` | Disabled / unavailable. **Raised from the original `#4d545c`**, which scored 2.50:1 on `--surface` — far below WCAG AA. It colours the sentence explaining *why* a card is dimmed, so an unreadable value would have silently undone the "honest beats polished" rule. Now 4.53:1. |
 | `--signal` | *single accent — selected on-device during v0, see below* | Live values, needles, active state |
 | `--alert` | `#ff4d4f` | Out-of-range only. Never decorative. |
 

@@ -1380,11 +1380,11 @@ Expected: a file under 25 KB. `U+00B0` is the degree sign — the Spirit Level i
   --hairline:   #1e2227;
   --ink:        #e8eaed;
   --ink-label:  #8b9299;
-  --ink-dim:    #4d545c;
+  --ink-dim:    #727c88;   /* 4.53:1 on --surface — AA body. See §4.1 note. */
   --signal:     #ffb000;   /* candidate — confirmed on-device in Task 14 */
   --alert:      #ff4d4f;
 
-  --pad:        max(1rem, env(safe-area-inset-left));
+  --pad:        max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
   --masthead-h: 3rem;
 
   color-scheme: dark;
@@ -1484,7 +1484,13 @@ body[data-route='instrument'] .masthead { border-bottom-color: transparent; }
 .stage {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - var(--masthead-h));
+  /* Subtract the insets: body already pads by them, so the space actually
+     available to children is 100dvh minus both. Without this the stage
+     overflows by the inset total on any notched device — invisible on desktop. */
+  min-height: calc(
+    100dvh - var(--masthead-h)
+    - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+  );
   padding: var(--pad);
 }
 
