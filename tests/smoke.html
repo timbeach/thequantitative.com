@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RUNNING</title>
+</head>
+<body>
+<pre id="out"></pre>
+<script type="module">
+const results = []
+const check = (name, fn) => {
+  try { fn(); results.push(['PASS', name]) }
+  catch (err) { results.push(['FAIL', `${name} — ${err.message}`]) }
+}
+
+const { parseRoute, hrefFor } = await import('/js/router.js')
+const { REGISTRY, findEntry } = await import('/js/registry.js')
+const { readEnv, detectCapabilities } = await import('/js/capability.js')
+const { escapeHtml } = await import('/js/util.js')
+
+check('every module loads over HTTP with real MIME types', () => {
+  if (typeof parseRoute !== 'function') throw new Error('router missing')
+  if (typeof findEntry !== 'function') throw new Error('registry missing')
+  if (typeof escapeHtml !== 'function') throw new Error('util missing')
+})
+
+check('router resolves the shelf and an instrument', () => {
+  if (parseRoute('#/').name !== 'shelf') throw new Error('shelf')
+  if (parseRoute('#/i/level').name !== 'instrument') throw new Error('instrument')
+})
+
+check('registry is non-empty and hrefs round-trip', () => {
+  if (REGISTRY.length === 0) throw new Error('registry empty')
+  for (const e of REGISTRY) {
+    if (parseRoute(hrefFor({ name: 'instrument', id: e.id })).name !== 'instrument') {
+      throw new Error(`bad id ${e.id}`)
+    }
+  }
+})
+
+check('capability detection runs against the real browser', () => {
+  const caps = detectCapabilities(readEnv())
+  for (const key of ['motion', 'microphone', 'wakelock']) {
+    if (!['available', 'needs-permission', 'unavailable'].includes(caps[key])) {
+      throw new Error(`bad state for ${key}: ${caps[key]}`)
+    }
+  }
+})
+
+for (const entry of REGISTRY) {
+  try {
+    const mod = await entry.load()
+    const inst = mod.default
+    if (inst.id !== entry.id) throw new Error(`id mismatch: ${inst.id} vs ${entry.id}`)
+    if (typeof inst.mount !== 'function') throw new Error('mount is not a function')
+    results.push(['PASS', `instrument ${entry.id} loads and matches its registry entry`])
+  } catch (err) {
+    results.push(['FAIL', `instrument ${entry.id} — ${err.message}`])
+  }
+}
+
+const failed = results.filter(([s]) => s === 'FAIL')
+document.getElementById('out').textContent =
+  results.map(([s, n]) => `${s} ${n}`).join('\n')
+document.title = failed.length === 0 ? `PASS ${results.length}` : `FAIL ${failed.length}`
+</script>
+</body>
+</html>
