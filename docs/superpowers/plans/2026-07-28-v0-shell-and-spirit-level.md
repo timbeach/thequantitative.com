@@ -1580,6 +1580,19 @@ git commit -m "feat: shell, design tokens, and IBM Plex Mono subset"
 
 ## Task 8: Registry, shelf, and app bootstrap
 
+> **Ordering note (found during execution).** Tasks 8–10 are listed in the wrong
+> topological order. `js/app.js` imports `js/arm.js` (Task 9) and
+> `js/registry.js` lazily imports `instruments/level.js` (Task 10) — and `tsc`
+> resolves imports at type-check time, so the type gate cannot exit 0 at the end
+> of Task 8 as written. The correct order is `js/util.js` → `instruments/level.js`
+> → `js/arm.js` → `js/registry.js` + `js/app.js`.
+>
+> Executed as-is with the gate knowingly red for exactly two `TS2307` forward
+> references, with that error set frozen to disk so any *new* type error stays
+> detectable, and a hard gate that types return to 0 before Task 11. Do not
+> resolve this by stubbing the missing modules or adding an ambient `.d.ts` — a
+> stub turns the gate green while hiding the real dependency.
+
 **Files:**
 - Create: `js/registry.js`, `js/util.js`, `js/app.js`
 
@@ -1954,7 +1967,12 @@ function requireOne(host, key) {
               isIosSafari(env)
                 ? 'Motion access was declined. To undo it: Settings → Apps → Safari → Motion & Orientation Access, then reload this page.'
                 : 'Access was declined. Tap the padlock in the address bar to review this site’s permissions, then reload.',
-              { label: 'Try again', onClick: () => resolve(false) },
+              // A reload is not optional: once declined, the permission API
+              // resolves 'denied' immediately without prompting again until the
+              // page is reloaded. A button that merely re-called it would look
+              // broken — and one that called resolve() would be inert, since
+              // the promise settles on the next line.
+              { label: 'Reload', onClick: () => globalThis.location.reload() },
             )
             resolve(false)
           })

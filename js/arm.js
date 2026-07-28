@@ -76,7 +76,11 @@ function requireOne(host, key) {
               isIosSafari(env)
                 ? 'Motion access was declined. To undo it: Settings → Apps → Safari → Motion & Orientation Access, then reload this page.'
                 : 'Access was declined. Tap the padlock in the address bar to review this site’s permissions, then reload.',
-              { label: 'Try again', onClick: () => resolve(false) },
+              // A reload is not optional: once declined, the permission API
+              // resolves 'denied' immediately without prompting again until the
+              // page is reloaded. A button that merely re-called it would look
+              // broken, so this reloads.
+              { label: 'Reload', onClick: () => globalThis.location.reload() },
             )
             resolve(false)
           })
