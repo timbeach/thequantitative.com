@@ -6,6 +6,8 @@ import { detectCapabilities, unavailableReason, isIosSafari } from '../js/capabi
 const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36'
 const DESKTOP_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+const IPADOS_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15'
+const MACOS_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15'
 
 /** @param {object} over */
 const env = (over = {}) => ({
@@ -15,6 +17,7 @@ const env = (over = {}) => ({
   hasMotionPermissionApi: false,
   hasGetUserMedia: true,
   hasWakeLock: true,
+  maxTouchPoints: 0,
   ...over,
 })
 
@@ -69,4 +72,12 @@ test('unavailable reason names the real cause, not a generic error', () => {
 
 test('unavailable reason is empty when the capability is fine', () => {
   assert.equal(unavailableReason('motion', env()), '')
+})
+
+test('ipadOS is detected despite sending a desktop mac user-agent', () => {
+  assert.equal(isIosSafari(env({ userAgent: IPADOS_UA, maxTouchPoints: 5 })), true)
+})
+
+test('a real mac is not mistaken for an ipad', () => {
+  assert.equal(isIosSafari(env({ userAgent: MACOS_UA, maxTouchPoints: 0 })), false)
 })

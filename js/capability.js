@@ -13,6 +13,7 @@
  * @property {boolean} hasMotionPermissionApi  DeviceMotionEvent.requestPermission exists (iOS 13+)
  * @property {boolean} hasGetUserMedia
  * @property {boolean} hasWakeLock
+ * @property {number} maxTouchPoints  navigator.maxTouchPoints; >1 means a touchscreen
  */
 
 /**
@@ -27,7 +28,8 @@ export function readEnv() {
     hasDeviceMotionEvent: typeof DME !== 'undefined',
     hasMotionPermissionApi: typeof DME?.requestPermission === 'function',
     hasGetUserMedia: typeof globalThis.navigator?.mediaDevices?.getUserMedia === 'function',
-    hasWakeLock: typeof (/** @type {any} */ (globalThis.navigator)?.wakeLock) === 'object',
+    hasWakeLock: /** @type {any} */ (globalThis.navigator)?.wakeLock != null,
+    maxTouchPoints: Number(globalThis.navigator?.maxTouchPoints) || 0,
   }
 }
 
@@ -56,10 +58,17 @@ export function detectCapabilities(env) {
  * iOS Safari has no beforeinstallprompt and no torch control, so the install
  * coach and certain cards branch on it. WebKit is the only engine allowed on
  * iOS, so matching the platform is equivalent to matching the engine.
+ *
+ * Since iPadOS 13, iPad defaults to "Request Desktop Website" and sends a UA
+ * indistinguishable from macOS Safari, so the token test alone misses it. A Mac
+ * with a touchscreen does not exist, so a Mac-like UA reporting multi-touch is
+ * an iPad.
+ *
  * @param {CapabilityEnv} env
  */
 export function isIosSafari(env) {
-  return /iPad|iPhone|iPod/.test(env.userAgent)
+  if (/iPad|iPhone|iPod/.test(env.userAgent)) return true
+  return /Macintosh/.test(env.userAgent) && env.maxTouchPoints > 1
 }
 
 /**
