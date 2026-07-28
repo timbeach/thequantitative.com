@@ -2133,12 +2133,14 @@ export default {
       tilt = applyCalibration(gravityToTilt(smoothed), zero)
     })
 
-    zeroBtn.addEventListener('click', () => {
+    // Routed through ctx.on, not addEventListener: instruments never touch raw
+    // browser APIs, so nothing can outlive unmount.
+    ctx.on(zeroBtn, 'click', () => {
       zero = gravityToTilt(smoothed)
       ctx.store.set('zero', zero)
     })
 
-    resetBtn.addEventListener('click', () => {
+    ctx.on(resetBtn, 'click', () => {
       zero = { pitch: 0, roll: 0 }
       ctx.store.set('zero', zero)
     })
