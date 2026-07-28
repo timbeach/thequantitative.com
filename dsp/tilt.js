@@ -8,19 +8,26 @@ const RAD_TO_DEG = 180 / Math.PI
  * Convert a gravity vector expressed in the device frame to pitch and roll.
  *
  * Device frame: +x points to the right edge of the screen, +y to the top edge,
- * +z out of the screen toward the user. Flat and screen-up therefore reads
- * approximately {x:0, y:0, z:+1} once normalised — see js/ctx.js, which is
- * responsible for normalising the platform sign difference before calling this.
+ * +z out of the screen toward the user.
+ *
+ * An accelerometer at rest measures specific force — the normal force, straight
+ * UP in the world frame — so `g` is the world up-vector expressed in device
+ * coordinates. Flat and screen-up therefore reads {x:0, y:0, z:+1} (matching
+ * Android's documented z = +9.81), and raising the top edge by θ tips the
+ * device's +y axis toward world-up, giving g = (0, sin θ, cos θ). Both
+ * components are POSITIVE for a raised edge, which is why neither term below is
+ * negated. See js/ctx.js, which normalises the iOS sign inversion into this
+ * convention before calling here.
  *
  * Only the direction of `g` matters; magnitude is divided out by atan2.
  *
- * @param {Vec3} g gravity vector, any magnitude
+ * @param {Vec3} g gravity vector (accelerometer specific force), any magnitude
  * @returns {Tilt} degrees. pitch > 0 = top edge raised. roll > 0 = right edge raised.
  */
 export function gravityToTilt(g) {
   return {
-    pitch: Math.atan2(-g.y, Math.hypot(g.x, g.z)) * RAD_TO_DEG,
-    roll: Math.atan2(-g.x, g.z) * RAD_TO_DEG,
+    pitch: Math.atan2(g.y, Math.hypot(g.x, g.z)) * RAD_TO_DEG,
+    roll: Math.atan2(g.x, g.z) * RAD_TO_DEG,
   }
 }
 

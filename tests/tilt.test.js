@@ -9,6 +9,13 @@ const near = (a, b, eps = 1e-9) =>
 
 const SQRT_HALF = Math.SQRT1_2 // 0.7071...
 
+// The vectors below are what a REAL accelerometer at rest reports. An
+// accelerometer measures specific force, which at rest is the normal force —
+// straight up in the world frame. So the reading is the world "up" unit vector
+// expressed in DEVICE coordinates. Raising the top edge by θ tips the device's
+// +y axis toward world-up, so g.y goes POSITIVE: g = (0, sin θ, cos θ).
+// This matches the documented Android behaviour of z = +9.81 when flat.
+
 test('flat, screen up → level', () => {
   const t = gravityToTilt({ x: 0, y: 0, z: 1 })
   near(t.pitch, 0)
@@ -16,34 +23,34 @@ test('flat, screen up → level', () => {
 })
 
 test('top edge raised 90° → pitch +90, roll 0', () => {
-  const t = gravityToTilt({ x: 0, y: -1, z: 0 })
+  const t = gravityToTilt({ x: 0, y: 1, z: 0 })
   near(t.pitch, 90)
   near(t.roll, 0)
 })
 
 test('top edge lowered 90° → pitch -90', () => {
-  near(gravityToTilt({ x: 0, y: 1, z: 0 }).pitch, -90)
+  near(gravityToTilt({ x: 0, y: -1, z: 0 }).pitch, -90)
 })
 
 test('right edge raised 90° → roll +90, pitch 0', () => {
-  const t = gravityToTilt({ x: -1, y: 0, z: 0 })
+  const t = gravityToTilt({ x: 1, y: 0, z: 0 })
   near(t.roll, 90)
   near(t.pitch, 0)
 })
 
 test('left edge raised 90° → roll -90', () => {
-  near(gravityToTilt({ x: 1, y: 0, z: 0 }).roll, -90)
+  near(gravityToTilt({ x: -1, y: 0, z: 0 }).roll, -90)
 })
 
 test('top edge raised 45°', () => {
-  const t = gravityToTilt({ x: 0, y: -SQRT_HALF, z: SQRT_HALF })
+  const t = gravityToTilt({ x: 0, y: SQRT_HALF, z: SQRT_HALF })
   near(t.pitch, 45)
   near(t.roll, 0)
 })
 
 test('magnitude is irrelevant — only direction matters', () => {
-  const a = gravityToTilt({ x: 0, y: -SQRT_HALF, z: SQRT_HALF })
-  const b = gravityToTilt({ x: 0, y: -9.81 * SQRT_HALF, z: 9.81 * SQRT_HALF })
+  const a = gravityToTilt({ x: 0, y: SQRT_HALF, z: SQRT_HALF })
+  const b = gravityToTilt({ x: 0, y: 9.81 * SQRT_HALF, z: 9.81 * SQRT_HALF })
   near(a.pitch, b.pitch)
   near(a.roll, b.roll)
 })
@@ -84,7 +91,7 @@ test('applyCalibration subtracts the stored offset', () => {
 })
 
 test('calibrating at rest yields exactly zero', () => {
-  const raw = gravityToTilt({ x: 0.02, y: -0.03, z: 0.999 })
+  const raw = gravityToTilt({ x: 0.02, y: 0.03, z: 0.999 })
   const t = applyCalibration(raw, raw)
   near(t.pitch, 0)
   near(t.roll, 0)
