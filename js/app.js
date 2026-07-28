@@ -5,6 +5,8 @@ import { readEnv, detectCapabilities, unavailableReason } from './capability.js'
 import { createCtx } from './ctx.js'
 import { requireCapabilities } from './arm.js'
 import { el, escapeHtml } from './util.js'
+import { startInstallCoach } from './install.js'
+import { startUpdateWatch } from './update.js'
 
 /** @typedef {import('./types.js').Route} Route */
 /** @typedef {import('./types.js').RegistryEntry} RegistryEntry */
@@ -119,3 +121,6 @@ createRouter(window, onRoute).start()
 // Release the mounted instrument if the page goes away mid-measurement,
 // so a backgrounded tab cannot keep a sensor listener alive.
 window.addEventListener('pagehide', () => { if (active) { active(); active = null } })
+
+startUpdateWatch(window)
+startInstallCoach(window)
