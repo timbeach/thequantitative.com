@@ -2278,14 +2278,21 @@ A readout reduced to its essentials: a centred signal dot inside a hairline vial
 
 Maskable icons need their content inside a safe zone of 40% radius, so the maskable variant is the same mark scaled down with padding.
 
+The `PNG8:` prefix and `-strip` are load-bearing. Without them ImageMagick picks
+the output encoding itself and — inconsistently — chose 16-bit TrueColorAlpha for
+two of these four, for artwork with about five flat colours. That cost 79% of the
+icon payload and made the 192px icon larger than the 512px one.
+
 ```bash
 mkdir -p icons
-magick -background none icons/mark.svg -resize 192x192 icons/icon-192.png
-magick -background none icons/mark.svg -resize 512x512 icons/icon-512.png
-magick -background none icons/mark.svg -resize 512x512 icons/apple-touch-icon.png
+magick -background none icons/mark.svg -resize 192x192 -strip PNG8:icons/icon-192.png
+magick -background none icons/mark.svg -resize 512x512 -strip PNG8:icons/icon-512.png
+magick -background none icons/mark.svg -resize 512x512 -strip PNG8:icons/apple-touch-icon.png
 magick -background '#000000' icons/mark.svg -resize 358x358 \
-       -gravity center -extent 512x512 icons/icon-maskable-512.png
-ls -lh icons/
+       -gravity center -extent 512x512 -strip PNG8:icons/icon-maskable-512.png
+
+# Verify: all four must report depth=8 and type=Palette.
+magick identify -format '%f %wx%h depth=%[bit-depth] type=%[type]\n' icons/*.png
 ```
 
 If `magick` is unavailable, `rsvg-convert -w 192 -h 192 icons/mark.svg -o icons/icon-192.png` is an equivalent substitute for the first three.
