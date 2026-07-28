@@ -12,6 +12,6 @@
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true
   },
-  "include": ["js/**/*.js", "dsp/**/*.js", "instruments/**/*.js", "sw.js"],
-  "exclude": ["node_modules", "archive", "tests/**/*.js"]
+  "include": ["js/**/*.js", "dsp/**/*.js", "instruments/**/*.js", "sw.js", "tests/**/*.js"],
+  "exclude": ["node_modules", "archive"]
 }
