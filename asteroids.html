@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asteroids</title>
+    <style>
+        body {
+            margin: 0;
+            background: black;
+        }
+        canvas {
+            display: block;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('game');
+        const context = canvas.getContext('2d');
+
+        const ship = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            angle: 0,
+            thrust: 0,
+            velocityX: 0,
+            velocityY: 0
+        };
+
+        const bullets = [];
+        const asteroids = [];
+        const asteroidCount = 5;
+
+        // Create initial asteroids
+        for (let i = 0; i < asteroidCount; i++) {
+            asteroids.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: 50,
+                velocityX: (Math.random() - 0.5) * 3,
+                velocityY: (Math.random() - 0.5) * 3
+            });
+        }
+
+        function draw() {
+            // Clear canvas
+            context.fillStyle = 'black';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw ship
+            context.save();
+            context.translate(ship.x, ship.y);
+            context.rotate(ship.angle);
+            context.fillStyle = 'white';
+            context.beginPath();
+            context.moveTo(10, 0);
+            context.lineTo(-10, -7);
+            context.lineTo(-10, 7);
+            context.closePath();
+            context.fill();
+            context.restore();
+
+            // Draw bullets
+            bullets.forEach((bullet) => {
+                context.fillStyle = 'white';
+                context.beginPath();
+                context.arc(bullet.x, bullet.y, 2, 0, Math.PI * 2, true);
+                context.closePath();
+                context.fill();
+            });
+
+            // Draw asteroids
+            asteroids.forEach((asteroid) => {
+                context.fillStyle = 'gray';
+                context.beginPath();
+                context.arc(asteroid.x, asteroid.y, asteroid.radius, 0, Math.PI * 2, true);
+                context.closePath();
+                context.fill();
+            });
+        }
+
+        function update() {
+            // Move ship
+            ship.x += ship.velocityX;
+            ship.y += ship.velocityY;
+
+            // Apply thrust
+            ship.velocityX += ship.thrust * Math.cos(ship.angle);
+            ship.velocityY += ship.thrust * Math.sin(ship.angle);
+
+            // Wrap ship around canvas
+            if (ship.x < 0) ship.x += canvas.width;
+            if (ship.x > canvas.width) ship.x -= canvas.width;
+            if (ship.y < 0) ship.y += canvas.height;
+            if (ship.y > canvas.height) ship.y -= canvas.height;
+
+            // Move bullets
+            bullets.forEach((bullet) => {
+                bullet.x += bullet.velocityX;
+                bullet.y += bullet.velocityY;
+            });
+
+            // Remove bullets that leave canvas
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                if (bullets[i].x < 0 || bullets[i].x > canvas.width || bullets[i].y < 0 || bullets[i].y > canvas.height) {
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Move asteroids
+            asteroids.forEach((asteroid) => {
+                asteroid.x += asteroid.velocityX;
+                asteroid.y += asteroid.velocityY;
+
+                // Wrap asteroids around canvas
+                if (asteroid.x < 0) asteroid.x += canvas.width;
+                if (asteroid.x > canvas.width) asteroid.x -= canvas.width;
+                if (asteroid.y < 0) asteroid.y += canvas.height;
+                if (asteroid.y > canvas.height) asteroid.y -= canvas.height;
+            });
+
+            // Check collisions between bullets and asteroids
+            for (let i = asteroids.length - 1; i >= 0; i--) {
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    const dist = Math.sqrt(Math.pow(asteroids[i].x - bullets[j].x, 2) + Math.pow(asteroids[i].y - bullets[j].y, 2));
+                    if (dist < asteroids[i].radius) {
+                        // Split asteroid if radius > 20
+                        if (asteroids[i].radius > 20) {
+                            for (let k = 0; k < 2; k++) {
+                                asteroids.push({
+                                    x: asteroids[i].x,
+                                    y: asteroids[i].y,
+                                    radius: asteroids[i].radius / 2,
+                                    velocityX: (Math.random() - 0.5) * 3,
+                                    velocityY: (Math.random() - 0.5) * 3
+                                });
+                            }
+                        }
+                        // Remove bullet and asteroid
+                        bullets.splice(j, 1);
+                        asteroids.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+        }
+
+        function gameLoop() {
+            draw();
+            update();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Keyboard controls
+        window.addEventListener('keydown', (event) => {
+            switch (event.key) {
+                case 'ArrowLeft':
+                    ship.angle -= 0.1;
+                    break;
+                case 'ArrowRight':
+                    ship.angle += 0.1;
+                    break;
+                case 'ArrowUp':
+                    ship.thrust = 0.1;
+                    break;
+                case ' ':
+                    bullets.push({
+                        x: ship.x + 10 * Math.cos(ship.angle),
+                        y: ship.y + 10 * Math.sin(ship.angle),
+                        velocityX: 5 * Math.cos(ship.angle),
+                        velocityY: 5 * Math.sin(ship.angle)
+                    });
+                    break;
+            }
+        });
+
+        window.addEventListener('keyup', (event) => {
+            if (event.key === 'ArrowUp') {
+                ship.thrust = 0;
+            }
+        });
+
+        // Start game loop
+        gameLoop();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong</title>
+    <style>
+        body {
+            margin: 0;
+            background: black;
+        }
+        canvas {
+            display: block;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="game" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('game');
+        const context = canvas.getContext('2d');
+
+        const ball = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 10,
+            speed: 5,
+            velocityX: 5,
+            velocityY: 5
+        };
+
+        const paddle = {
+            width: 10,
+            height: 100,
+            x: canvas.width - 10, // Move the paddle to the right side
+            y: canvas.height / 2 - 50
+        };
+
+        function draw() {
+            // Clear canvas
+            context.fillStyle = 'black';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw ball
+            context.fillStyle = 'white';
+            context.beginPath();
+            context.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2, true);
+            context.closePath();
+            context.fill();
+
+            // Draw paddle
+            context.fillStyle = 'white';
+            context.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+        }
+
+        function update() {
+            // Move ball
+            ball.x += ball.velocityX;
+            ball.y += ball.velocityY;
+
+            // Bounce off top & bottom
+            if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+                ball.velocityY = -ball.velocityY;
+            }
+
+            // Bounce off left wall
+            if (ball.x - ball.radius < 0) {
+                ball.velocityX = -ball.velocityX;
+            }
+
+            // Bounce off paddle
+            if (ball.x + ball.radius > paddle.x && ball.y > paddle.y && ball.y < paddle.y + paddle.height) {
+                ball.velocityX = -ball.velocityX;
+            }
+
+            // Reset if ball leaves the canvas
+            if (ball.x - ball.radius > canvas.width) {
+                ball.x = canvas.width / 2;
+                ball.y = canvas.height / 2;
+                ball.velocityX = 5; // Reset the velocity
+            }
+        }
+
+        function gameLoop() {
+            draw();
+            update();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Paddle control
+        window.addEventListener('mousemove', (event) => {
+            paddle.y = event.clientY - paddle.height / 2;
+        });
+
+        // Start game loop
+        gameLoop();
+    </script>
+</body>
+</html>
+
