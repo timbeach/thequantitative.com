@@ -1,0 +1,17 @@
+.git/
+.gitignore
+.claude/
+.superpowers/
+node_modules/
+package.json
+package-lock.json
+jsconfig.json
+deploy.sh
+.deployignore
+docs/
+tests/
+tools/
+archive/
+STATUS-*.md
+CLAUDE.md
+README.md

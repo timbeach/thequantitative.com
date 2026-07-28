@@ -1,0 +1,15 @@
+{
+  "name": "thequantitative",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A cabinet of instruments. No build step — typescript is a type checker only and emits nothing.",
+  "scripts": {
+    "types": "tsc -p jsconfig.json --noEmit",
+    "test": "node --test tests/",
+    "check": "npm run types && npm run test"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
