@@ -1101,7 +1101,10 @@ test('android values pass through untouched', () => {
 })
 
 test('ios values are negated into the W3C convention', () => {
-  assert.deepEqual(normaliseGravity({ x: 0, y: 0, z: -9.81 }, true), { x: -0, y: -0, z: 9.81 })
+  // Expect +0, not -0. Negating a zero yields -0, and Math.atan2 treats -0 as a
+  // different quadrant — so normaliseGravity collapses it. assert/strict's
+  // deepEqual distinguishes the two, which is what pins this down.
+  assert.deepEqual(normaliseGravity({ x: 0, y: 0, z: -9.81 }, true), { x: 0, y: 0, z: 9.81 })
 })
 
 test('both platforms flat-screen-up produce a level reading', () => {
@@ -1163,11 +1166,15 @@ import { readEnv, isIosSafari } from './capability.js'
  */
 export function normaliseGravity(raw, iosSigns) {
   const s = iosSigns ? -1 : 1
-  return {
-    x: s * (Number(raw?.x) || 0),
-    y: s * (Number(raw?.y) || 0),
-    z: s * (Number(raw?.z) || 0),
+  // Map -0 to +0. Negating a zero component yields -0, and Math.atan2 treats
+  // -0 as a different quadrant than +0 — so without this, iOS and Android
+  // disagree by 180° at any orientation where an axis reads exactly zero.
+  // (`Number(-0) || 0` is not enough: the sign multiplication reintroduces -0.)
+  const norm = (/** @type {unknown} */ v) => {
+    const n = s * (Number(v) || 0)
+    return n === 0 ? 0 : n
   }
+  return { x: norm(raw?.x), y: norm(raw?.y), z: norm(raw?.z) }
 }
 
 /**
