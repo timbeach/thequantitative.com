@@ -260,35 +260,42 @@ test('flat, screen up → level', () => {
   near(t.roll, 0)
 })
 
+// The vectors below are what a REAL accelerometer at rest reports. An
+// accelerometer measures specific force, which at rest is the normal force —
+// straight up in the world frame. So the reading is the world "up" unit vector
+// expressed in DEVICE coordinates. Raising the top edge by θ tips the device's
+// +y axis toward world-up, so g.y goes POSITIVE: g = (0, sin θ, cos θ).
+// This matches the documented Android behaviour of z = +9.81 when flat.
+
 test('top edge raised 90° → pitch +90, roll 0', () => {
-  const t = gravityToTilt({ x: 0, y: -1, z: 0 })
+  const t = gravityToTilt({ x: 0, y: 1, z: 0 })
   near(t.pitch, 90)
   near(t.roll, 0)
 })
 
 test('top edge lowered 90° → pitch -90', () => {
-  near(gravityToTilt({ x: 0, y: 1, z: 0 }).pitch, -90)
+  near(gravityToTilt({ x: 0, y: -1, z: 0 }).pitch, -90)
 })
 
 test('right edge raised 90° → roll +90, pitch 0', () => {
-  const t = gravityToTilt({ x: -1, y: 0, z: 0 })
+  const t = gravityToTilt({ x: 1, y: 0, z: 0 })
   near(t.roll, 90)
   near(t.pitch, 0)
 })
 
 test('left edge raised 90° → roll -90', () => {
-  near(gravityToTilt({ x: 1, y: 0, z: 0 }).roll, -90)
+  near(gravityToTilt({ x: -1, y: 0, z: 0 }).roll, -90)
 })
 
 test('top edge raised 45°', () => {
-  const t = gravityToTilt({ x: 0, y: -SQRT_HALF, z: SQRT_HALF })
+  const t = gravityToTilt({ x: 0, y: SQRT_HALF, z: SQRT_HALF })
   near(t.pitch, 45)
   near(t.roll, 0)
 })
 
 test('magnitude is irrelevant — only direction matters', () => {
-  const a = gravityToTilt({ x: 0, y: -SQRT_HALF, z: SQRT_HALF })
-  const b = gravityToTilt({ x: 0, y: -9.81 * SQRT_HALF, z: 9.81 * SQRT_HALF })
+  const a = gravityToTilt({ x: 0, y: SQRT_HALF, z: SQRT_HALF })
+  const b = gravityToTilt({ x: 0, y: 9.81 * SQRT_HALF, z: 9.81 * SQRT_HALF })
   near(a.pitch, b.pitch)
   near(a.roll, b.roll)
 })
@@ -356,9 +363,16 @@ const RAD_TO_DEG = 180 / Math.PI
  * Convert a gravity vector expressed in the device frame to pitch and roll.
  *
  * Device frame: +x points to the right edge of the screen, +y to the top edge,
- * +z out of the screen toward the user. Flat and screen-up therefore reads
- * approximately {x:0, y:0, z:+1} once normalised — see js/ctx.js, which is
- * responsible for normalising the platform sign difference before calling this.
+ * +z out of the screen toward the user.
+ *
+ * An accelerometer at rest measures specific force — the normal force, straight
+ * UP in the world frame — so `g` is the world up-vector expressed in device
+ * coordinates. Flat and screen-up therefore reads {x:0, y:0, z:+1} (matching
+ * Android's documented z = +9.81), and raising the top edge by θ tips the
+ * device's +y axis toward world-up, giving g = (0, sin θ, cos θ). Both
+ * components are POSITIVE for a raised edge, which is why neither term below is
+ * negated. See js/ctx.js, which normalises the iOS sign inversion into this
+ * convention before calling here.
  *
  * Only the direction of `g` matters; magnitude is divided out by atan2.
  *
@@ -367,8 +381,8 @@ const RAD_TO_DEG = 180 / Math.PI
  */
 export function gravityToTilt(g) {
   return {
-    pitch: Math.atan2(-g.y, Math.hypot(g.x, g.z)) * RAD_TO_DEG,
-    roll: Math.atan2(-g.x, g.z) * RAD_TO_DEG,
+    pitch: Math.atan2(g.y, Math.hypot(g.x, g.z)) * RAD_TO_DEG,
+    roll: Math.atan2(g.x, g.z) * RAD_TO_DEG,
   }
 }
 
@@ -1089,10 +1103,12 @@ test('both platforms flat-screen-up produce a level reading', () => {
 })
 
 test('both platforms agree on the sign of a raised top edge', () => {
-  const android = gravityToTilt(normaliseGravity({ x: 0, y: -6.94, z: 6.94 }, false))
-  const ios = gravityToTilt(normaliseGravity({ x: 0, y: 6.94, z: -6.94 }, true))
-  assert.ok(android.pitch > 44 && android.pitch < 46)
-  assert.ok(ios.pitch > 44 && ios.pitch < 46)
+  // Top edge raised 45°: world-up in device coords is (0, +0.707, +0.707)·9.81.
+  // Android reports that directly; iOS reports its negation.
+  const android = gravityToTilt(normaliseGravity({ x: 0, y: 6.94, z: 6.94 }, false))
+  const ios = gravityToTilt(normaliseGravity({ x: 0, y: -6.94, z: -6.94 }, true))
+  assert.ok(android.pitch > 44 && android.pitch < 46, `android pitch was ${android.pitch}`)
+  assert.ok(ios.pitch > 44 && ios.pitch < 46, `ios pitch was ${ios.pitch}`)
 })
 
 test('null components are treated as zero rather than producing NaN', () => {
