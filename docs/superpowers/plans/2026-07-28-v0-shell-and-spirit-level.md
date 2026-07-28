@@ -2768,7 +2768,6 @@ check('capability detection runs against the real browser', () => {
   }
 })
 
-check('every instrument module imports and satisfies the contract', async () => {})
 for (const entry of REGISTRY) {
   try {
     const mod = await entry.load()
