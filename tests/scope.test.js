@@ -132,3 +132,23 @@ test('disposed flag reflects state', () => {
   scope.dispose()
   assert.equal(scope.disposed, true)
 })
+
+test('cancels the current (not stale) frame id after several reschedules', () => {
+  const host = fakeHost()
+  const scope = createScope(host)
+  scope.raf(() => {})
+  host.tick(); host.tick(); host.tick()
+  scope.dispose()
+  assert.equal(host.pendingCount, 0, 'the frame scheduled after the last tick must be cancelled too')
+})
+
+test('on() after dispose does not attach a listener', () => {
+  const host = fakeHost()
+  const scope = createScope(host)
+  const target = new EventTarget()
+  scope.dispose()
+  let hits = 0
+  scope.on(target, 'ping', () => { hits++ })
+  target.dispatchEvent(new Event('ping'))
+  assert.equal(hits, 0, 'on() must not attach to a disposed scope')
+})
