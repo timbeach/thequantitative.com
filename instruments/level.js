@@ -76,9 +76,18 @@ export default {
     const noDataTimer = setTimeout(() => {
       if (seenSample) return
       noData = true
+      // The permission was granted and DeviceMotionEvent exists, yet nothing is
+      // arriving. Feature detection cannot see this: browsers that block motion
+      // as a fingerprinting vector — Brave's Shields by default — still expose
+      // the constructor and simply never fire the event. Verified on a Pixel:
+      // works in Chrome, silent in Brave. So name the likely cause rather than
+      // blaming the device.
       root.innerHTML = `
         <div class="arm">
-          <p class="arm__body">No motion data is arriving from this device.</p>
+          <p class="arm__body">No motion data is arriving.</p>
+          <p class="arm__body">Some browsers block motion sensors as a
+          fingerprinting defence. In Brave, check Shields → Fingerprinting
+          blocking. Otherwise this device may have no accelerometer.</p>
           <a class="label" href="#/">← All instruments</a>
         </div>`
     }, 1500)
