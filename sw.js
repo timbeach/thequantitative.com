@@ -6,7 +6,7 @@
 // deploy. That matters: the browser detects a service worker update by
 // byte-comparing this file, so if only sw-manifest.js changed, an unmodified
 // sw.js would never trigger one and the fix would never reach anybody.
-const CACHE_VERSION = 'b545cdb6f2e9'; // build_sw.py rewrites this line
+const CACHE_VERSION = 'e8d1672d7db1'; // build_sw.py rewrites this line
 
 const CACHE = `tq-${CACHE_VERSION}`;
 
@@ -42,6 +42,14 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // Navigations resolve from the shell directly. "/" is not in the precache
+  // list (the manifest emits /index.html), so without this an online launch
+  // costs a round trip and a captive portal can be cached under "/".
+  if (request.mode === 'navigate') {
+    event.respondWith(caches.match('/index.html').then((hit) => hit || fetch(request)));
+    return;
+  }
 
   // Cache-first. Everything is precached and the site makes no network calls,
   // so a cache miss means a genuinely new asset; falling through to the network
