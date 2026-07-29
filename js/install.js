@@ -1,5 +1,5 @@
 // @ts-check
-import { readEnv, isIosSafari } from './capability.js'
+import { readEnv, isIos } from './capability.js'
 import { el } from './util.js'
 
 const DISMISS_KEY = 'tq:install:dismissed'
@@ -54,10 +54,15 @@ export function startInstallCoach(win) {
     }, { once: true })
   })
 
-  if (isIosSafari(readEnv())) {
+  if (isIos(readEnv())) {
     sheet(win, [
-      el('p', {}, ['Add to your home screen: tap the Share button, then ', el('strong', {}, ['Add to Home Screen'])]),
-      el('p', { class: 'card__reason' }, ['Runs full-screen and works with no signal.']),
+      el('p', {}, [
+        'Install to your home screen: tap the Share button in the toolbar, ',
+        'then scroll down and choose ',
+        el('strong', {}, ['Add to Home Screen']),
+        '.',
+      ]),
+      el('p', { class: 'card__reason' }, ['Works in Safari and Chrome. Runs full-screen, and works with no signal.']),
     ])
   }
 }

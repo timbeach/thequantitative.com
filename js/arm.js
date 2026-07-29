@@ -1,5 +1,5 @@
 // @ts-check
-import { readEnv, detectCapabilities, isIosSafari, unavailableReason } from './capability.js'
+import { readEnv, detectCapabilities, isIos, unavailableReason } from './capability.js'
 import { el } from './util.js'
 
 /** @typedef {import('./types.js').CapabilityKey} CapabilityKey */
@@ -73,8 +73,8 @@ function requireOne(host, key) {
             screen(
               host,
               'Permission denied',
-              isIosSafari(env)
-                ? 'Motion access was declined. To undo it: Settings → Apps → Safari → Motion & Orientation Access, then reload this page.'
+              isIos(env)
+                ? 'Motion access was declined. To undo it: Settings → the browser you’re using (e.g. Safari or Chrome) → Motion & Orientation Access, then reload this page.'
                 : 'Access was declined. Tap the padlock in the address bar to review this site’s permissions, then reload.',
               // A reload is not optional: once declined, the permission API
               // resolves 'denied' immediately without prompting again until the
