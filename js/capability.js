@@ -55,9 +55,13 @@ export function detectCapabilities(env) {
 }
 
 /**
- * iOS Safari has no beforeinstallprompt and no torch control, so the install
- * coach and certain cards branch on it. WebKit is the only engine allowed on
- * iOS, so matching the platform is equivalent to matching the engine.
+ * Detects the iOS *platform*, not Safari specifically. Apple requires every
+ * browser on iOS — Chrome, Firefox, Edge, Brave, Safari — to be built on
+ * WebKit, so they all share the same install and permission behaviour (no
+ * beforeinstallprompt, no torch control, motion needs an explicit gesture).
+ * That makes platform detection the right granularity here: this returning
+ * true does not mean the browser is Safari, only that it is running on
+ * WebKit-on-iOS like every other browser on the device.
  *
  * Since iPadOS 13, iPad defaults to "Request Desktop Website" and sends a UA
  * indistinguishable from macOS Safari, so the token test alone misses it. A Mac
@@ -66,7 +70,7 @@ export function detectCapabilities(env) {
  *
  * @param {CapabilityEnv} env
  */
-export function isIosSafari(env) {
+export function isIos(env) {
   if (/iPad|iPhone|iPod/.test(env.userAgent)) return true
   return /Macintosh/.test(env.userAgent) && env.maxTouchPoints > 1
 }

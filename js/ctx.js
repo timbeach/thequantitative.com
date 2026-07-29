@@ -1,6 +1,6 @@
 // @ts-check
 import { createScope } from './scope.js'
-import { readEnv, isIosSafari } from './capability.js'
+import { readEnv, isIos } from './capability.js'
 
 /** @typedef {import('./types.js').Ctx} Ctx */
 /** @typedef {import('./types.js').Vec3} Vec3 */
@@ -74,7 +74,7 @@ export function createCtx(win, namespace) {
     cancelAnimationFrame: win.cancelAnimationFrame.bind(win),
   })
 
-  const iosSigns = isIosSafari(readEnv())
+  const iosSigns = isIos(readEnv())
 
   /** @type {any} */
   let sentinel = null

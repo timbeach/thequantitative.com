@@ -1,7 +1,7 @@
 // @ts-check
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { detectCapabilities, unavailableReason, isIosSafari } from '../js/capability.js'
+import { detectCapabilities, unavailableReason, isIos } from '../js/capability.js'
 
 const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36'
@@ -53,10 +53,10 @@ test('wake lock degrades silently rather than blocking', () => {
   assert.equal(detectCapabilities(env({ hasWakeLock: false })).wakelock, 'unavailable')
 })
 
-test('ios safari detection: iphone yes, android no, desktop linux no', () => {
-  assert.equal(isIosSafari(env({ userAgent: IOS_UA })), true)
-  assert.equal(isIosSafari(env({ userAgent: ANDROID_UA })), false)
-  assert.equal(isIosSafari(env({ userAgent: DESKTOP_UA })), false)
+test('ios platform detection: iphone yes, android no, desktop linux no', () => {
+  assert.equal(isIos(env({ userAgent: IOS_UA })), true)
+  assert.equal(isIos(env({ userAgent: ANDROID_UA })), false)
+  assert.equal(isIos(env({ userAgent: DESKTOP_UA })), false)
 })
 
 test('unavailable reason names the real cause, not a generic error', () => {
@@ -75,9 +75,9 @@ test('unavailable reason is empty when the capability is fine', () => {
 })
 
 test('ipadOS is detected despite sending a desktop mac user-agent', () => {
-  assert.equal(isIosSafari(env({ userAgent: IPADOS_UA, maxTouchPoints: 5 })), true)
+  assert.equal(isIos(env({ userAgent: IPADOS_UA, maxTouchPoints: 5 })), true)
 })
 
 test('a real mac is not mistaken for an ipad', () => {
-  assert.equal(isIosSafari(env({ userAgent: MACOS_UA, maxTouchPoints: 0 })), false)
+  assert.equal(isIos(env({ userAgent: MACOS_UA, maxTouchPoints: 0 })), false)
 })
