@@ -4,7 +4,7 @@ import { REGISTRY, findEntry } from './registry.js'
 import { readEnv, detectCapabilities, unavailableReason } from './capability.js'
 import { createCtx } from './ctx.js'
 import { requireCapabilities } from './arm.js'
-import { el, escapeHtml } from './util.js'
+import { el } from './util.js'
 import { startInstallCoach } from './install.js'
 import { startUpdateWatch } from './update.js'
 
@@ -91,7 +91,7 @@ function renderMessage(message) {
 async function mountInstrument(id) {
   const seq = ++generation
   const entry = findEntry(id)
-  if (!entry) { renderMessage(`No instrument called “${escapeHtml(id)}”.`); return }
+  if (!entry) { renderMessage(`No instrument called “${id}”.`); return }
 
   const stage = el('div', { class: 'stage' })
   app.append(stage)
@@ -109,9 +109,9 @@ async function mountInstrument(id) {
   const teardown = mod.default.mount(stage, ctx)
 
   // Raced during mount() itself: release immediately rather than stranding it.
-  if (seq !== generation) { teardown(); dispose(); return }
+  if (seq !== generation) { try { teardown() } finally { dispose() }; return }
 
-  active = () => { teardown(); dispose() }
+  active = () => { try { teardown() } finally { dispose() } }
 }
 
 /** @param {Route} route */

@@ -38,7 +38,7 @@ export function gravityToTilt(g) {
  *
  * @param {number} dt seconds elapsed since the previous sample
  * @param {number} tau time constant in seconds — larger is slower and steadier
- * @returns {number} coefficient in (0, 1]
+ * @returns {number} coefficient in [0, 1]
  */
 export function alphaFor(dt, tau) {
   if (tau <= 0) return 1
