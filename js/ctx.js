@@ -78,6 +78,22 @@ export function createCtx(win, namespace) {
 
   /** @type {any} */
   let sentinel = null
+  let pending = false
+  let wired = false
+
+  const acquire = () => {
+    const wl = /** @type {any} */ (win.navigator).wakeLock
+    if (!wl?.request) return
+    if (pending || (sentinel && !sentinel.released)) return
+    pending = true
+    wl.request('screen')
+      .then((/** @type {any} */ s) => {
+        sentinel = s
+        s.addEventListener?.('release', () => { sentinel = null })
+      })
+      .catch(() => { /* denied, or document not visible — degrade silently */ })
+      .finally(() => { pending = false })
+  }
 
   /** @type {Ctx} */
   const ctx = {
@@ -103,19 +119,21 @@ export function createCtx(win, namespace) {
 
     wakeLock() {
       const wl = /** @type {any} */ (win.navigator).wakeLock
-      if (!wl?.request) return
-      wl.request('screen')
-        .then((/** @type {any} */ s) => {
-          sentinel = s
-          scope.add(() => { sentinel?.release?.().catch(() => {}); sentinel = null })
-        })
-        .catch(() => { /* denied or unsupported — degrade silently */ })
+      if (!wl?.request || wired) return
+      wired = true
 
-      // A wake lock is dropped whenever the page is backgrounded; re-acquire on
-      // return, otherwise the screen sleeps mid-measurement after any app switch.
+      scope.add(() => { sentinel?.release?.().catch(() => {}); sentinel = null })
+
+      // The UA silently releases the lock whenever the document is hidden, and
+      // leaves the sentinel object in place with released === true. Track the
+      // release event instead of testing the sentinel for null, and register
+      // this listener exactly once — the previous recursive form re-registered
+      // it on every foreground, doubling listeners each cycle.
       scope.on(win.document, 'visibilitychange', () => {
-        if (win.document.visibilityState === 'visible' && sentinel === null) ctx.wakeLock()
+        if (win.document.visibilityState === 'visible') acquire()
       })
+
+      acquire()
     },
   }
 
