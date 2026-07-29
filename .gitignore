@@ -6,3 +6,8 @@
 node_modules/
 .DS_Store
 __pycache__/
+
+# Design spec, implementation plan and session status — kept locally,
+# out of the public repo (see README for the reasoning that matters).
+docs/
+STATUS-*.md
