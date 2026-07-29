@@ -2,6 +2,11 @@
 /** @typedef {import('../js/types.js').Vec3} Vec3 */
 /** @typedef {import('../js/types.js').Tilt} Tilt */
 
+// alphaFor now lives in dsp/smoothing.js — every instrument damps its readout,
+// so it is not tilt-specific. Re-exported here so existing importers are
+// unaffected; tilt's own tests cover that this move changed nothing.
+export { alphaFor } from './smoothing.js'
+
 const RAD_TO_DEG = 180 / Math.PI
 
 /**
@@ -29,20 +34,6 @@ export function gravityToTilt(g) {
     pitch: Math.atan2(g.y, Math.hypot(g.x, g.z)) * RAD_TO_DEG,
     roll: Math.atan2(g.x, g.z) * RAD_TO_DEG,
   }
-}
-
-/**
- * First-order low-pass coefficient. Frame-rate independent: derived from the
- * actual elapsed time rather than assuming a fixed interval, so the damping
- * feels identical whether the device delivers 60 Hz or 30 Hz.
- *
- * @param {number} dt seconds elapsed since the previous sample
- * @param {number} tau time constant in seconds — larger is slower and steadier
- * @returns {number} coefficient in [0, 1]
- */
-export function alphaFor(dt, tau) {
-  if (tau <= 0) return 1
-  return 1 - Math.exp(-dt / tau)
 }
 
 /**
