@@ -49,6 +49,12 @@ a { color: inherit; text-decoration: none; }
 
 :focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
 
+/* #app is focused programmatically on every route change so screen readers
+   announce the new view. That is not keyboard navigation, and the ring on a
+   full-width element renders as two unexplained amber rules across the screen
+   (its left and right edges fall outside the viewport). Suppress it here only. */
+#app:focus, #app:focus-visible { outline: none; }
+
 /* ── Masthead ─────────────────────────────────────────────────────────── */
 .masthead {
   display: flex;
@@ -164,7 +170,17 @@ body[data-route='instrument'] .sheet { display: none; }
   font-size: 0.8125rem;
   line-height: 1.5;
   z-index: 10;
+
+  /* Sheets are built as a flat list of children (paragraphs then buttons), so
+     lay them out here rather than requiring a wrapper element. Without this the
+     action and the dismiss collide — "NOT NOW" ran into the RELOAD button. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
 }
+.sheet > p { flex: 1 1 100%; margin: 0; }
+.sheet > button { flex: 0 0 auto; }
 .sheet__dismiss {
   font: inherit;
   font-size: 0.6875rem;
