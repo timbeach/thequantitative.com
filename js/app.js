@@ -76,6 +76,16 @@ function renderAbout() {
     numbers come out.</p>
     <p class="card__blurb">No accounts, no tracking, no network. Everything here works
     with the aeroplane mode switch on.</p>`
+  wrap.append(
+    el('h2', { class: 'shelf__heading label' }, ['Install']),
+    el('p', { class: 'card__blurb' }, [
+      'iOS (Safari or Chrome): tap the Share button, scroll down, then choose Add to Home Screen.',
+    ]),
+    el('p', { class: 'card__blurb' }, [
+      'Android (Chrome): open the browser menu and choose Install app, or tap the install chip on the shelf.',
+    ]),
+    el('p', { class: 'card__reason' }, ['Installing runs it full-screen, with no signal required.']),
+  )
   app.append(wrap)
 }
 
