@@ -1,6 +1,18 @@
 #!/bin/sh
 set -e
 
+# Gate 0 — nothing untracked may ship. tools/build_sw.py works from a denylist,
+# so any scratch file left in the tree is precached and rsynced to production as
+# a public URL. An untracked file is by definition unreviewed; refuse to deploy
+# until it is committed or removed.
+untracked=$(git status --porcelain --untracked-files=all | grep '^??' || true)
+if [ -n "$untracked" ]; then
+  echo "✗ refusing to deploy with untracked files:"
+  echo "$untracked" | sed 's/^?? /    /'
+  echo "  commit them, delete them, or add them to .gitignore."
+  exit 1
+fi
+
 # Gate 1 — types. tsc emits nothing; it is a linter for JSDoc annotations.
 echo "→ type checking"
 npm run --silent types
