@@ -6,7 +6,7 @@
 // deploy. That matters: the browser detects a service worker update by
 // byte-comparing this file, so if only sw-manifest.js changed, an unmodified
 // sw.js would never trigger one and the fix would never reach anybody.
-const CACHE_VERSION = '62be56c0f605'; // build_sw.py rewrites this line
+const CACHE_VERSION = 'f7e5161586e3'; // build_sw.py rewrites this line
 
 const CACHE = `tq-${CACHE_VERSION}`;
 
@@ -15,7 +15,17 @@ importScripts('./sw-manifest.js');
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) =>
-      cache.addAll(self.PRECACHE.map((entry) => entry.url))
+      // Deliberately NOT cache.addAll(): it fetches through the browser's HTTP
+      // cache, so a genuinely new worker would precache STALE bytes and appear
+      // to install an update that changed nothing. `cache: 'reload'` forces a
+      // network fetch per asset. Promise.all still rejects on any failure, so
+      // install remains all-or-nothing exactly as addAll was.
+      Promise.all(self.PRECACHE.map((entry) =>
+        fetch(new Request(entry.url, { cache: 'reload' })).then((response) => {
+          if (!response.ok) throw new Error('precache failed: ' + entry.url);
+          return cache.put(entry.url, response);
+        })
+      ))
     )
   );
   // Deliberately no skipWaiting() here — the new worker waits until the user
