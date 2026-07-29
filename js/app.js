@@ -16,7 +16,13 @@ const app = /** @type {HTMLElement} */ (document.getElementById('app'))
 /** Teardown for whatever is currently mounted. Exactly one may be live. */
 let active = /** @type {null | (() => void)} */ (null)
 
+/** Bumped on every route change and every mount. An in-flight mount whose
+ *  generation is stale must abandon: the user has navigated on, and assigning
+ *  `active` would strand the previous teardown with no reference to it. */
+let generation = 0
+
 function clear() {
+  generation++
   if (active) { active(); active = null }
   app.replaceChildren()
 }
@@ -83,6 +89,7 @@ function renderMessage(message) {
 
 /** @param {string} id */
 async function mountInstrument(id) {
+  const seq = ++generation
   const entry = findEntry(id)
   if (!entry) { renderMessage(`No instrument called “${escapeHtml(id)}”.`); return }
 
@@ -92,12 +99,17 @@ async function mountInstrument(id) {
   // The arm screen owns every permission state. mount() is never reached until
   // the grant lands, so no instrument file contains permission handling.
   const granted = await requireCapabilities(stage, entry.needs)
-  if (!granted) return
+  if (!granted || seq !== generation) return
 
   const mod = await entry.load()
+  if (seq !== generation) return
+
   const { ctx, dispose } = createCtx(window, entry.id)
   stage.replaceChildren()
   const teardown = mod.default.mount(stage, ctx)
+
+  // Raced during mount() itself: release immediately rather than stranding it.
+  if (seq !== generation) { teardown(); dispose(); return }
 
   active = () => { teardown(); dispose() }
 }
