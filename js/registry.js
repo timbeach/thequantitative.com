@@ -19,6 +19,14 @@ export const REGISTRY = [
     needs: ['motion'],
     load: () => import('../instruments/level.js'),
   },
+  {
+    id: 'galton',
+    name: 'Galton Board',
+    category: 'ideas',
+    blurb: 'Watch the normal distribution assemble itself.',
+    needs: [],
+    load: () => import('../instruments/galton.js'),
+  },
 ]
 
 /**

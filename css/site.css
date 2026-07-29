@@ -230,3 +230,31 @@ body[data-route='instrument'] .sheet { display: none; }
 .level__axis { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
 .level__vial { width: min(70vw, 20rem, 42dvh); aspect-ratio: 1; }
 .level__actions { display: flex; gap: 0.75rem; }
+
+/* ── Galton Board ─────────────────────────────────────────────────────── */
+.galton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  width: 100%;
+}
+.galton__stats {
+  display: flex;
+  justify-content: space-evenly;
+  width: 100%;
+  gap: 1rem;
+  overflow: hidden;
+}
+.galton__stat { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; min-width: 0; }
+/* Three readouts share the width — see the Spirit Level note: .readout's 18vw
+   assumes a single readout spanning the screen. Worst case here is "-12.34",
+   six glyphs at Plex Mono's 0.6em advance. */
+.galton__stat .readout { font-size: min(1.75rem, 7vw); white-space: nowrap; }
+.galton__theory { margin: 0; text-align: center; }
+.galton__board { width: 100%; flex: 1; min-height: 14rem; }
+.galton__controls { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; }
+.galton__control { display: flex; flex-direction: column; gap: 0.25rem; }
+.galton__control input[type='range'] { width: 100%; accent-color: var(--signal); }
+.galton__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
