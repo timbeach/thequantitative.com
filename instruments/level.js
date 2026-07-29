@@ -35,11 +35,11 @@ export default {
         <div class="level__readouts">
           <div class="level__axis">
             <span class="label">Pitch</span>
-            <span class="readout" data-pitch>0.0<span class="readout__unit">°</span></span>
+            <span class="readout" data-pitch>—.—<span class="readout__unit">°</span></span>
           </div>
           <div class="level__axis">
             <span class="label">Roll</span>
-            <span class="readout" data-roll>0.0<span class="readout__unit">°</span></span>
+            <span class="readout" data-roll>—.—<span class="readout__unit">°</span></span>
           </div>
         </div>
         <canvas class="level__vial" data-vial></canvas>
@@ -58,13 +58,31 @@ export default {
 
     const stored = /** @type {Tilt|undefined} */ (ctx.store.get('zero'))
     /** @type {Tilt} */
-    let zero = stored && typeof stored.pitch === 'number' ? stored : { pitch: 0, roll: 0 }
+    let zero = stored && Number.isFinite(stored.pitch) && Number.isFinite(stored.roll)
+      ? stored
+      : { pitch: 0, roll: 0 }
 
     /** @type {Vec3} */
     let smoothed = { x: 0, y: 0, z: 1 }
     /** @type {Tilt} */
     let tilt = { pitch: 0, roll: 0 }
     let seenSample = false
+    let noData = false
+
+    // A confident-looking reading with no sensor data is worse than no reading
+    // at all — the bubble must never claim "level" until a real sample has
+    // arrived. If none arrives in a reasonable window, say so plainly instead
+    // of leaving the instrument silently frozen at its seed values.
+    const noDataTimer = setTimeout(() => {
+      if (seenSample) return
+      noData = true
+      root.innerHTML = `
+        <div class="arm">
+          <p class="arm__body">No motion data is arriving from this device.</p>
+          <a class="label" href="#/">← All instruments</a>
+        </div>`
+    }, 1500)
+    ctx.on(ctx.signal, 'abort', () => clearTimeout(noDataTimer))
 
     ctx.wakeLock()
 
@@ -100,12 +118,18 @@ export default {
 
     const styles = getComputedStyle(document.documentElement)
     const SIGNAL = styles.getPropertyValue('--signal').trim() || '#ffb000'
-    const HAIRLINE = styles.getPropertyValue('--hairline').trim() || '#1e2227'
+    const EDGE = styles.getPropertyValue('--edge').trim() || '#55606e'
     const INK_DIM = styles.getPropertyValue('--ink-dim').trim() || '#4d545c'
 
     ctx.raf(() => {
-      pitchOut.firstChild && (pitchOut.firstChild.textContent = fmt(tilt.pitch))
-      rollOut.firstChild && (rollOut.firstChild.textContent = fmt(tilt.roll))
+      if (noData) return
+
+      // Never print a number, and never touch the ring below, until a real
+      // sample has arrived — the seed values are not a measurement.
+      if (seenSample) {
+        pitchOut.firstChild && (pitchOut.firstChild.textContent = fmt(tilt.pitch))
+        rollOut.firstChild && (rollOut.firstChild.textContent = fmt(tilt.roll))
+      }
 
       const w = canvas.width / (window.devicePixelRatio || 1)
       const c = w / 2
@@ -114,7 +138,7 @@ export default {
       context.clearRect(0, 0, w, w)
 
       // Vial: outer ring plus concentric tolerance rings and a crosshair.
-      context.strokeStyle = HAIRLINE
+      context.strokeStyle = EDGE
       context.lineWidth = 1
       context.beginPath(); context.arc(c, c, r, 0, Math.PI * 2); context.stroke()
       context.beginPath(); context.arc(c, c, r * 0.5, 0, Math.PI * 2); context.stroke()
@@ -124,6 +148,8 @@ export default {
       context.moveTo(c - r, c); context.lineTo(c + r, c)
       context.moveTo(c, c - r); context.lineTo(c, c + r)
       context.stroke()
+
+      if (!seenSample) return
 
       // Bubble. Roll drives x, pitch drives y; y is inverted so raising the top
       // edge moves the bubble up the screen, matching a physical vial.
