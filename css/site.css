@@ -3,6 +3,7 @@
   --void:       #000000;
   --surface:    #0d0f12;
   --hairline:   #1e2227;
+  --edge:       #55606e;   /* 3.28:1 on void, 3.00:1 on surface — WCAG 1.4.11 */
   --ink:        #e8eaed;
   --ink-label:  #8b9299;
   --ink-dim:    #727c88;
@@ -64,6 +65,10 @@ a { color: inherit; text-decoration: none; }
 }
 /* On an instrument the chrome gets out of the way. */
 body[data-route='instrument'] .masthead { border-bottom-color: transparent; }
+/* And any sheet appended to body (install coach, update pill) must not sit
+   over an instrument's controls — .sheet is fixed-positioned outside #app,
+   so clear() cannot remove it; hiding by route is the only reach it has. */
+body[data-route='instrument'] .sheet { display: none; }
 
 /* ── Typographic roles ────────────────────────────────────────────────── */
 .label {
@@ -95,7 +100,7 @@ body[data-route='instrument'] .masthead { border-bottom-color: transparent; }
   min-height: 7rem;
   padding: 0.875rem;
   background: var(--surface);
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--edge);
   border-radius: 0.5rem;
 }
 .card__name { display: block; margin-bottom: 0.35rem; font-size: 0.9375rem; }
@@ -144,7 +149,7 @@ body[data-route='instrument'] .masthead { border-bottom-color: transparent; }
   min-height: 2.75rem;   /* comfortable thumb target */
   cursor: pointer;
 }
-.arm__button--quiet { background: transparent; color: var(--ink-label); border: 1px solid var(--hairline); }
+.arm__button--quiet { background: transparent; color: var(--ink-label); border: 1px solid var(--edge); }
 
 /* ── Sheets and pills ─────────────────────────────────────────────────── */
 .sheet {
@@ -154,7 +159,7 @@ body[data-route='instrument'] .masthead { border-bottom-color: transparent; }
   margin-inline: var(--pad);
   padding: 1rem;
   background: var(--surface);
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--edge);
   border-radius: 0.625rem;
   font-size: 0.8125rem;
   line-height: 1.5;
@@ -191,5 +196,5 @@ body[data-route='instrument'] .masthead { border-bottom-color: transparent; }
 }
 .level__readouts { display: flex; gap: 2.5rem; }
 .level__axis { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
-.level__vial { width: min(70vw, 20rem); aspect-ratio: 1; }
+.level__vial { width: min(70vw, 20rem, 42dvh); aspect-ratio: 1; }
 .level__actions { display: flex; gap: 0.75rem; }
