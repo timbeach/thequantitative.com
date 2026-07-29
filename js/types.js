@@ -30,6 +30,8 @@
  * @property {AbortSignal} signal
  * @property {Store} store
  * @property {() => void} wakeLock                            Best-effort; no-op where unsupported
+ * @property {() => AudioContext} audio                     Shared, closed on unmount
+ * @property {() => Promise<MediaStreamAudioSourceNode>} mic Stream stopped on unmount
  */
 
 /**

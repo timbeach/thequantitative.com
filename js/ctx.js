@@ -81,6 +81,11 @@ export function createCtx(win, namespace) {
   let pending = false
   let wired = false
 
+  /** @type {AudioContext | null} */
+  let audioCtx = null
+  /** @type {Promise<MediaStreamAudioSourceNode> | null} */
+  let micPromise = null
+
   const acquire = () => {
     const wl = /** @type {any} */ (win.navigator).wakeLock
     if (!wl?.request) return
@@ -134,6 +139,42 @@ export function createCtx(win, namespace) {
       })
 
       acquire()
+    },
+
+    audio() {
+      if (audioCtx) return audioCtx
+      const Ctor = /** @type {any} */ (win).AudioContext || /** @type {any} */ (win).webkitAudioContext
+      audioCtx = new Ctor()
+      scope.add(() => { audioCtx?.close().catch(() => {}); audioCtx = null })
+      return /** @type {AudioContext} */ (audioCtx)
+    },
+
+    mic() {
+      if (micPromise) return micPromise
+      const audio = this.audio()
+
+      // An AudioContext starts suspended until a user gesture. The arm screen
+      // guarantees one has happened before mount(), so resuming here is safe —
+      // but it must be explicit or every reading is silence.
+      micPromise = audio.resume()
+        .catch(() => {})
+        .then(() => win.navigator.mediaDevices.getUserMedia({
+          // CRITICAL: these three are ON by default and each destroys the
+          // measurement. Automatic gain control normalises loudness, which is
+          // precisely the quantity being measured; noise suppression and echo
+          // cancellation subtract signal the meter is supposed to report.
+          audio: {
+            autoGainControl: false,
+            echoCancellation: false,
+            noiseSuppression: false,
+          },
+        }))
+        .then((stream) => {
+          scope.add(() => stream.getTracks().forEach((t) => t.stop()))
+          return audio.createMediaStreamSource(stream)
+        })
+
+      return micPromise
     },
   }
 
