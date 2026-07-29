@@ -258,3 +258,17 @@ body[data-route='instrument'] .sheet { display: none; }
 .galton__control { display: flex; flex-direction: column; gap: 0.25rem; }
 .galton__control input[type='range'] { width: 100%; accent-color: var(--signal); }
 .galton__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+
+/* ── Sound Level ──────────────────────────────────────────────────────── */
+.dbm { display: flex; flex-direction: column; align-items: center; gap: 1rem; flex: 1; width: 100%; justify-content: center; }
+.dbm__main { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; width: 100%; overflow: hidden; }
+.dbm__main .readout { font-size: min(4rem, 20vw); white-space: nowrap; }
+.dbm__caveat { text-align: center; max-width: 24rem; margin: 0; }
+.dbm__bar { width: 100%; height: 2.5rem; }
+.dbm__stats { display: flex; justify-content: space-evenly; width: 100%; gap: 1rem; overflow: hidden; }
+.dbm__stat { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; min-width: 0; }
+/* Three readouts share the width; worst case "-100.0" is six glyphs at Plex
+   Mono's 0.6em advance. Same trap as the Spirit Level — .readout's 18vw
+   assumes a single readout spanning the screen. */
+.dbm__stat .readout { font-size: min(1.75rem, 7vw); white-space: nowrap; }
+.dbm__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }

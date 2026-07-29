@@ -27,6 +27,14 @@ export const REGISTRY = [
     needs: [],
     load: () => import('../instruments/galton.js'),
   },
+  {
+    id: 'db-meter',
+    name: 'Sound Level',
+    category: 'world',
+    blurb: 'A-weighted sound pressure, live.',
+    needs: ['microphone'],
+    load: () => import('../instruments/db-meter.js'),
+  },
 ]
 
 /**
