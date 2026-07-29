@@ -56,8 +56,7 @@ export function startInstallCoach(win) {
 
   if (isIosSafari(readEnv())) {
     sheet(win, [
-      el('p', {}, ['Add to your home screen: tap the Share button, then ']),
-      el('strong', {}, ['Add to Home Screen']),
+      el('p', {}, ['Add to your home screen: tap the Share button, then ', el('strong', {}, ['Add to Home Screen'])]),
       el('p', { class: 'card__reason' }, ['Runs full-screen and works with no signal.']),
     ])
   }
