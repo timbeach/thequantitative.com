@@ -35,6 +35,14 @@ export const REGISTRY = [
     needs: ['microphone'],
     load: () => import('../instruments/db-meter.js'),
   },
+  {
+    id: 'tuner',
+    name: 'Tuner',
+    category: 'world',
+    blurb: 'Chromatic tuner with a live spectrogram.',
+    needs: ['microphone'],
+    load: () => import('../instruments/tuner.js'),
+  },
 ]
 
 /**

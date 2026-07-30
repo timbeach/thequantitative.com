@@ -272,3 +272,34 @@ body[data-route='instrument'] .sheet { display: none; }
    assumes a single readout spanning the screen. */
 .dbm__stat .readout { font-size: min(1.75rem, 7vw); white-space: nowrap; }
 .dbm__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+
+/* ── Tuner ────────────────────────────────────────────────────────────── */
+.tuner { display: flex; flex-direction: column; gap: 0.75rem; flex: 1; width: 100%; }
+.tuner__note { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; overflow: hidden; }
+/* One readout, but it holds "A#4" plus an accidental — three or four glyphs.
+   The site-wide 18vw is fine here; the cap keeps it sane on a tablet. */
+.tuner__note .readout { font-size: min(5rem, 26vw); white-space: nowrap; line-height: 1; }
+.tuner__cents { text-align: center; }
+.tuner__meter { width: 100%; height: 3.5rem; }
+/* This shape — a flex:1 canvas inside a column — is what overflowed the
+   Spirit Level in landscape (S1), but plain `min-height: 0` alone does NOT
+   fix it here, and shipping it unverified would have reintroduced the same
+   bug. Measured against the reference constraint from that fix (iPhone 14
+   Pro landscape, 324px of stage height): `.tuner` and `.stage` are sized by
+   `min-height`, never `height`, so neither establishes a definite main size.
+   `flex: 1` expands to `flex-basis: 0%`, and a *percentage* flex-basis that
+   can't resolve against a definite container falls back to `content` — and
+   this canvas's content size is governed by its intrinsic 300×150 (2:1)
+   attribute ratio, not by 0. The result: the canvas claimed `width / 2` of
+   height regardless of available space (799px wide → 399px tall, verified),
+   the instrument overflowed by hundreds of pixels, and the runtime resize()
+   handler — which reads back clientWidth/clientHeight to size the bitmap —
+   would have locked in that wrong ratio every frame after.
+   `flex-basis: 0px` is a <length>, not a <percentage>, so it resolves to a
+   definite 0 with no dependency on the ancestor chain, sidestepping the
+   fallback entirely; `min-height: 0` is still required alongside it to
+   remove the automatic minimum size, which otherwise reintroduces the same
+   content-based floor. Verified with both rules present and re-verified with
+   each removed individually — dropping either one reproduces the overflow. */
+.tuner__spec { width: 100%; flex: 1 1 0px; min-height: 0; background: var(--void); }
+.tuner__actions { display: flex; justify-content: center; }
