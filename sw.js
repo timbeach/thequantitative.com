@@ -6,7 +6,7 @@
 // deploy. That matters: the browser detects a service worker update by
 // byte-comparing this file, so if only sw-manifest.js changed, an unmodified
 // sw.js would never trigger one and the fix would never reach anybody.
-const CACHE_VERSION = '9f4c1e7708ff'; // build_sw.py rewrites this line
+const CACHE_VERSION = '8f5f937b08bd'; // build_sw.py rewrites this line
 
 const CACHE = `tq-${CACHE_VERSION}`;
 
