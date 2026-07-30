@@ -253,7 +253,14 @@ body[data-route='instrument'] .sheet { display: none; }
    six glyphs at Plex Mono's 0.6em advance. */
 .galton__stat .readout { font-size: min(1.75rem, 7vw); white-space: nowrap; }
 .galton__theory { margin: 0; text-align: center; }
-.galton__board { width: 100%; flex: 1; min-height: 14rem; }
+/* `flex: 1 1 0px` and `min-height: 0` are BOTH required, and neither is
+   sufficient alone. `flex: 1` expands to `flex-basis: 0%`, and a percentage
+   basis that cannot resolve against a definite ancestor (.stage uses min-height,
+   not height) falls back to `content` — which for a canvas means its intrinsic
+   300×150 attribute ratio. A length basis is always definite. Without both, the
+   canvas rendered 377px inside a 324px landscape stage and the instrument
+   screen scrolled. Same fix as .tuner__spec. */
+.galton__board { width: 100%; flex: 1 1 0px; min-height: 0; }
 .galton__controls { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; }
 .galton__control { display: flex; flex-direction: column; gap: 0.25rem; }
 .galton__control input[type='range'] { width: 100%; accent-color: var(--signal); }
