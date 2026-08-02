@@ -85,6 +85,8 @@ export function createCtx(win, namespace) {
   let audioCtx = null
   /** @type {Promise<MediaStreamAudioSourceNode> | null} */
   let micPromise = null
+  /** @type {Promise<{ latitude:number, longitude:number, accuracyM:number }> | null} */
+  let locationPromise = null
 
   const acquire = () => {
     const wl = /** @type {any} */ (win.navigator).wakeLock
@@ -175,6 +177,62 @@ export function createCtx(win, namespace) {
         })
 
       return micPromise
+    },
+
+    location() {
+      if (locationPromise) return locationPromise
+      locationPromise = new Promise((resolve, reject) => {
+        // No high accuracy: a kilometre of position error moves the sky by
+        // under a hundredth of a degree, so the accuracy is not worth the
+        // battery or the time. The timeout keeps a fixless device from
+        // hanging this promise forever.
+        win.navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracyM: pos.coords.accuracy,
+          }),
+          reject,
+          { timeout: 15000, enableHighAccuracy: false },
+        )
+      })
+      return locationPromise
+    },
+
+    orientation(fn) {
+      // Chrome/Android fires 'deviceorientationabsolute' as a separate,
+      // continuous event stream alongside plain 'deviceorientation' (whose
+      // alpha there is relative, not absolute). Once that stream has been
+      // seen, it is treated as authoritative and the relative stream is
+      // ignored — otherwise the heading would flicker to null and back every
+      // other frame as the two events interleave.
+      let sawAbsoluteStream = false
+
+      /** @param {any} e */
+      const emitFrom = (e) => {
+        const compass = e.webkitCompassHeading
+        if (typeof compass === 'number') {
+          fn(compass, e.webkitCompassAccuracy ?? null)
+          return
+        }
+        // Only 360 - alpha is a true compass heading; a non-absolute alpha is
+        // relative to wherever the page happened to start and drifts, so it is
+        // reported as null rather than confidently pointing at the wrong sky.
+        if (e.absolute === true && typeof e.alpha === 'number') {
+          fn(360 - e.alpha, null)
+          return
+        }
+        fn(null, null)
+      }
+
+      scope.on(win, 'deviceorientationabsolute', (/** @type {Event} */ event) => {
+        sawAbsoluteStream = true
+        emitFrom(/** @type {any} */ (event))
+      })
+      scope.on(win, 'deviceorientation', (/** @type {Event} */ event) => {
+        if (sawAbsoluteStream) return
+        emitFrom(/** @type {any} */ (event))
+      })
     },
   }
 

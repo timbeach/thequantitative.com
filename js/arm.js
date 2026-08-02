@@ -20,6 +20,11 @@ const COPY = {
     why: 'Holds the screen on while you are measuring.',
     action: 'Continue',
   },
+  geolocation: {
+    title: 'Location access',
+    why: 'Which stars are above you depends entirely on where you are standing. Your position is used to compute the sky and is never sent anywhere — this site has no server.',
+    action: 'Use my location',
+  },
 }
 
 /**
@@ -100,6 +105,17 @@ function requireOne(host, key) {
 async function grant(key) {
   if (key === 'motion') {
     const DME = /** @type {any} */ (globalThis).DeviceMotionEvent
+    const DOE = /** @type {any} */ (globalThis).DeviceOrientationEvent
+
+    // iOS gates DeviceOrientationEvent.requestPermission separately from
+    // DeviceMotionEvent.requestPermission. Both must be requested from this
+    // same click handler's gesture, or the compass silently never fires while
+    // motion works fine — a bug that looks exactly like broken pointing maths.
+    // Fired here, synchronously, before any await breaks the gesture context.
+    if (typeof DOE?.requestPermission === 'function') {
+      DOE.requestPermission().catch(() => {})
+    }
+
     if (typeof DME?.requestPermission !== 'function') return true
     return (await DME.requestPermission()) === 'granted'
   }
@@ -108,6 +124,12 @@ async function grant(key) {
     // Release immediately — ctx.mic() opens its own stream when an instrument
     // actually needs one. This call exists purely to trigger the prompt.
     stream.getTracks().forEach((t) => t.stop())
+    return true
+  }
+  if (key === 'geolocation') {
+    await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 15000, enableHighAccuracy: false })
+    })
     return true
   }
   return true

@@ -17,6 +17,7 @@ const env = (over = {}) => ({
   hasMotionPermissionApi: false,
   hasGetUserMedia: true,
   hasWakeLock: true,
+  hasGeolocation: true,
   maxTouchPoints: 0,
   ...over,
 })
@@ -49,6 +50,18 @@ test('microphone unavailable without getUserMedia', () => {
   assert.equal(detectCapabilities(env({ hasGetUserMedia: false })).microphone, 'unavailable')
 })
 
+test('geolocation always needs permission when the API exists', () => {
+  assert.equal(detectCapabilities(env()).geolocation, 'needs-permission')
+})
+
+test('geolocation unavailable without navigator.geolocation', () => {
+  assert.equal(detectCapabilities(env({ hasGeolocation: false })).geolocation, 'unavailable')
+})
+
+test('insecure context disables geolocation too', () => {
+  assert.equal(detectCapabilities(env({ isSecureContext: false })).geolocation, 'unavailable')
+})
+
 test('wake lock degrades silently rather than blocking', () => {
   assert.equal(detectCapabilities(env({ hasWakeLock: false })).wakelock, 'unavailable')
 })
@@ -68,6 +81,11 @@ test('unavailable reason names the real cause, not a generic error', () => {
 
   const noMic = unavailableReason('microphone', env({ hasGetUserMedia: false }))
   assert.match(noMic, /microphone/i)
+})
+
+test('unavailable reason names geolocation as the cause', () => {
+  const noGeo = unavailableReason('geolocation', env({ hasGeolocation: false }))
+  assert.match(noGeo, /location/i)
 })
 
 test('unavailable reason is empty when the capability is fine', () => {

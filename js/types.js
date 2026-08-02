@@ -2,7 +2,7 @@
 // Typedefs only. This module has no runtime code and is never imported for value.
 
 /** @typedef {'world'|'ideas'} Category */
-/** @typedef {'motion'|'microphone'|'wakelock'} CapabilityKey */
+/** @typedef {'motion'|'microphone'|'wakelock'|'geolocation'} CapabilityKey */
 /** @typedef {'available'|'needs-permission'|'unavailable'} CapabilityState */
 /** @typedef {'idle'|'prompting'|'granted'|'denied'|'unavailable'} ArmState */
 /** @typedef {() => void} Teardown */
@@ -32,6 +32,8 @@
  * @property {() => void} wakeLock                            Best-effort; no-op where unsupported
  * @property {() => AudioContext} audio                     Shared, closed on unmount
  * @property {() => Promise<MediaStreamAudioSourceNode>} mic Stream stopped on unmount
+ * @property {() => Promise<{ latitude:number, longitude:number, accuracyM:number }>} location One fix per mount, memoised
+ * @property {(fn:(heading:number|null, accuracyDeg:number|null) => void) => void} orientation Compass heading, true-north only; null when unavailable
  */
 
 /**

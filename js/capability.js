@@ -13,6 +13,7 @@
  * @property {boolean} hasMotionPermissionApi  DeviceMotionEvent.requestPermission exists (iOS 13+)
  * @property {boolean} hasGetUserMedia
  * @property {boolean} hasWakeLock
+ * @property {boolean} hasGeolocation
  * @property {number} maxTouchPoints  navigator.maxTouchPoints; >1 means a touchscreen
  */
 
@@ -29,6 +30,7 @@ export function readEnv() {
     hasMotionPermissionApi: typeof DME?.requestPermission === 'function',
     hasGetUserMedia: typeof globalThis.navigator?.mediaDevices?.getUserMedia === 'function',
     hasWakeLock: /** @type {any} */ (globalThis.navigator)?.wakeLock != null,
+    hasGeolocation: globalThis.navigator?.geolocation != null,
     maxTouchPoints: Number(globalThis.navigator?.maxTouchPoints) || 0,
   }
 }
@@ -51,6 +53,11 @@ export function detectCapabilities(env) {
       : 'needs-permission',
 
     wakelock: env.isSecureContext && env.hasWakeLock ? 'available' : 'unavailable',
+
+    // Like getUserMedia, geolocation always prompts — there is no 'available'.
+    geolocation: !env.isSecureContext || !env.hasGeolocation
+      ? 'unavailable'
+      : 'needs-permission',
   }
 }
 
@@ -86,5 +93,6 @@ export function unavailableReason(key, env) {
   if (!env.isSecureContext) return 'needs a secure connection · open over HTTPS'
   if (key === 'motion') return 'needs a motion sensor · not present on this device'
   if (key === 'microphone') return 'needs a microphone · not available in this browser'
+  if (key === 'geolocation') return 'needs location · not available in this browser'
   return 'not available on this device'
 }
