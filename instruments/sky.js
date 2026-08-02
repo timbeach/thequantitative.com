@@ -1,5 +1,6 @@
 // @ts-check
-import { lstDegrees, eqToAltAz, lightLeftYear } from '../dsp/astro.js'
+import { lstDegrees, eqToAltAz, lightLeftYear, angularSeparation } from '../dsp/astro.js'
+import { createAimSmoother, createStarLock } from '../dsp/aim.js'
 import { STARS } from '../data/stars.js'
 
 /** @typedef {import('../js/types.js').Instrument} Instrument */
@@ -11,6 +12,9 @@ const DEG = Math.PI / 180
 const V_HALF = 2            // degrees — the accelerometer's noise floor, fixed
 const H_HALF_DEFAULT = 15   // degrees — assumed compass accuracy when the device reports none
 const FOV = 60               // degrees — width of the pointing-mode view
+const ACQUIRE_DEG = 8        // degrees — createStarLock's acquire threshold, mirrored below for the ring
+const RELEASE_DEG = 14       // degrees — createStarLock's release threshold (hysteresis gap)
+const DWELL_FRAMES = 3       // frames — createStarLock's dwell requirement, mirrored for ring progress
 const POLARIS = STARS.find((s) => s.name === 'Polaris')
 
 /** @param {number} v @param {number} lo @param {number} hi */
@@ -106,6 +110,20 @@ export default {
 
     ctx.wakeLock()
 
+    const smoothAim = createAimSmoother()
+    const starLock = createStarLock({ acquireDeg: ACQUIRE_DEG, releaseDeg: RELEASE_DEG, dwellFrames: DWELL_FRAMES })
+    let lastT = 0
+
+    // createStarLock only reports dwell once fully locked (null while
+    // acquiring, {dwell:1} once held) — it does not expose fractional
+    // progress. This shadow counter mirrors its own unlocked-branch dwell
+    // logic, over the same candidates and ACQUIRE_DEG, purely so the ring can
+    // close smoothly; it never itself decides which star is identified —
+    // starLock() remains the sole authority for that.
+    /** @type {string | null} */
+    let acquireName = null
+    let acquireCount = 0
+
     // Unlike every other instrument's canvas, this one sits beside text that
     // populates asynchronously — the Polaris line and the sidereal clock
     // arrive only once ctx.location() resolves, after mount's first layout
@@ -173,10 +191,14 @@ export default {
      * @param {number} aimAlt @param {number} aimAz
      * @param {number} hHalf @param {number} lat @param {number} lst
      * @param {{ star: Star, alt:number, az:number } | null} best
+     * @param {Star | null} ringTarget the star to ring, whether acquiring or locked
+     * @param {number} ringProgress 0..1 while acquiring, 1 once locked
      */
-    function drawPointing(w, h, aimAlt, aimAz, hHalf, lat, lst, best) {
+    function drawPointing(w, h, aimAlt, aimAz, hHalf, lat, lst, best, ringTarget, ringProgress) {
       const scale = Math.min(w, h) / FOV   // px per degree
       const cx = w / 2, cy = h / 2
+      let ringX = /** @type {number | null} */ (null)
+      let ringY = /** @type {number | null} */ (null)
 
       const dAltHorizon = -aimAlt
       if (Math.abs(dAltHorizon) < FOV / 2 + 5) {
@@ -199,6 +221,8 @@ export default {
         g2d.arc(x, y, starRadius(s.mag), 0, Math.PI * 2)
         g2d.fillStyle = isBest ? SIGNAL : (alt < 0 ? INK_DIM : INK)
         g2d.fill()
+
+        if (ringTarget != null && s === ringTarget) { ringX = x; ringY = y }
       }
 
       g2d.strokeStyle = SIGNAL
@@ -206,6 +230,21 @@ export default {
       g2d.beginPath()
       g2d.ellipse(cx, cy, hHalf * scale, V_HALF * scale, 0, 0, Math.PI * 2)
       g2d.stroke()
+
+      // The lock ring: closes clockwise from the top while acquiring
+      // (--ink-dim), solid once locked (--signal). Not drawn at all once
+      // released — it simply disappears rather than lingering.
+      if (ringTarget != null && ringX != null && ringY != null && ringProgress > 0) {
+        const r = starRadius(ringTarget.mag) + 5
+        const locked = ringProgress >= 1
+        g2d.strokeStyle = locked ? SIGNAL : INK_DIM
+        g2d.lineWidth = 1.5
+        g2d.beginPath()
+        const start = -Math.PI / 2
+        const end = start + clamp(ringProgress, 0, 1) * Math.PI * 2
+        g2d.arc(ringX, ringY, r, start, end)
+        g2d.stroke()
+      }
 
       g2d.strokeStyle = EDGE
       g2d.lineWidth = 1
@@ -243,20 +282,23 @@ export default {
       }
     }
 
-    ctx.raf(() => {
+    ctx.raf((t) => {
       resize()
+      const dt = lastT === 0 ? 1 / 60 : Math.min((t - lastT) / 1000, 0.25)
+      lastT = t
+
       const now = new Date()
       const gNow = lastG
       const headingNow = heading
       const headingAccNow = headingAcc
 
-      let aimAlt = /** @type {number | null} */ (null)
+      let rawAlt = /** @type {number | null} */ (null)
       if (gNow) {
         const mag = Math.hypot(gNow.x, gNow.y, gNow.z) || 1
-        aimAlt = Math.asin(clamp(-gNow.z / mag, -1, 1)) / DEG
+        rawAlt = Math.asin(clamp(-gNow.z / mag, -1, 1)) / DEG
       }
       const hasHeading = headingNow != null
-      const aimAz = hasHeading ? headingNow : null
+      const rawAz = hasHeading ? headingNow : null
       const hHalf = clamp((headingAccNow != null && headingAccNow > 0) ? headingAccNow : H_HALF_DEFAULT, 2, 60)
 
       clockEl.textContent =
@@ -282,11 +324,11 @@ export default {
           ? 'Location unavailable — cannot compute the sky.'
           : 'Waiting for your location…')
         lightEl.textContent = '—'
-        setStats(null, aimAlt, null)
+        setStats(null, rawAlt, null)
         return
       }
 
-      if (aimAlt == null) {
+      if (rawAlt == null) {
         drawMessage(w, h, 'Waiting for motion data…')
         setIdle('Locating…', '—', 'Waiting for motion data…')
         lightEl.textContent = '—'
@@ -301,27 +343,65 @@ export default {
         setIdle('Overhead', 'Whole sky',
           'No compass detected — showing everything above you, not where the phone points.')
         lightEl.textContent = '—'
-        setStats(null, aimAlt, null)
+        setStats(null, rawAlt, null)
         return
       }
 
-      /** @type {{ star: Star, alt: number, az: number } | null} */
-      let best = null
+      // Smoothed values are what the instrument is actually pointing at — used
+      // for rendering, identification, and the displayed alt/az readout alike.
+      const smoothed = smoothAim(rawAlt, /** @type {number} */ (rawAz), dt)
+      const aimAlt = smoothed.alt
+      const aimAz = smoothed.az
+
+      /** @type {{ star: Star, alt: number, az: number, sep: number }[]} */
+      const records = []
       for (const s of STARS) {
         const { alt, az } = eqToAltAz(s.ra, s.dec, loc.latitude, lst)
         if (alt < 0) continue
-        const dAlt = alt - aimAlt
-        const dAz = wrapDeg(az - /** @type {number} */ (aimAz))
-        const inCone = (dAlt / V_HALF) ** 2 + (dAz / hHalf) ** 2 <= 1
-        if (inCone && (!best || s.mag < best.star.mag)) best = { star: s, alt, az }
+        records.push({ star: s, alt, az, sep: angularSeparation(aimAlt, aimAz, alt, az) })
+      }
+      records.sort((a, b) => a.star.mag - b.star.mag)   // brightest first
+
+      /** @type {Map<string, { star: Star, alt: number, az: number }>} */
+      const byName = new Map()
+      const candidates = records.map((r) => {
+        byName.set(r.star.name, r)
+        return { name: r.star.name, sep: r.sep }
+      })
+
+      const lock = starLock(candidates)
+
+      let acquireProgress = 0
+      if (lock == null) {
+        const pick = candidates.find((c) => c.sep <= ACQUIRE_DEG)
+        if (!pick) {
+          acquireName = null
+          acquireCount = 0
+        } else {
+          if (pick.name !== acquireName) { acquireName = pick.name; acquireCount = 0 }
+          acquireCount += 1
+          acquireProgress = clamp(acquireCount / DWELL_FRAMES, 0, 1)
+        }
+      } else {
+        acquireName = null
+        acquireCount = 0
       }
 
-      drawPointing(w, h, aimAlt, /** @type {number} */ (aimAz), hHalf, loc.latitude, lst, best)
+      const best = lock ? (byName.get(lock.name) ?? null) : null
+      const ringTarget = best
+        ? best.star
+        : (acquireName ? (byName.get(acquireName)?.star ?? null) : null)
+      const ringProgress = best ? 1 : acquireProgress
+
+      drawPointing(w, h, aimAlt, aimAz, hHalf, loc.latitude, lst, best, ringTarget, ringProgress)
 
       if (best) {
         setIdle('Pointing at', best.star.name, `±${hHalf.toFixed(0)}° compass accuracy`)
         const y = lightLeftYear(best.star.distanceLy, now)
         lightEl.textContent = `Light left in ${best.star.uncertain ? '~' : ''}${fmtYear(y)}`
+      } else if (ringTarget) {
+        setIdle('Acquiring…', '—', `±${hHalf.toFixed(0)}° compass accuracy`)
+        lightEl.textContent = '—'
       } else {
         setIdle('Pointing at', 'No match', `±${hHalf.toFixed(0)}° compass accuracy`)
         lightEl.textContent = '—'
