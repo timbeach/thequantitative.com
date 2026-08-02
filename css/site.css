@@ -310,3 +310,20 @@ body[data-route='instrument'] .sheet { display: none; }
    each removed individually — dropping either one reproduces the overflow. */
 .tuner__spec { width: 100%; flex: 1 1 0px; min-height: 0; background: var(--void); }
 .tuner__actions { display: flex; justify-content: center; }
+
+/* ── Jump Height ──────────────────────────────────────────────────────── */
+.jump { display: flex; flex-direction: column; align-items: center; gap: 1rem; flex: 1; width: 100%; justify-content: center; }
+.jump__main { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; width: 100%; overflow: hidden; }
+.jump__main .readout { font-size: min(5rem, 24vw); white-space: nowrap; line-height: 1; }
+.jump__pm { text-align: center; }
+.jump__stats { display: flex; justify-content: space-evenly; width: 100%; gap: 1rem; overflow: hidden; }
+.jump__stat { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; min-width: 0; }
+.jump__stat .readout { font-size: min(1.75rem, 8vw); white-space: nowrap; }
+.jump__history { list-style: none; margin: 0; padding: 0; width: 100%; max-width: 22rem; }
+.jump__row { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid var(--hairline); font-size: 0.8125rem; }
+.jump__row-hang { color: var(--ink-label); }
+.jump__actions { display: flex; justify-content: center; }
+/* A new best flashes, so it reads as an event rather than a number changing. */
+.jump--best .jump__main .readout { color: var(--ink); }
+.jump--best .jump__main { animation: jump-flash 0.45s ease-out 2; }
+@keyframes jump-flash { 0%, 100% { opacity: 1 } 50% { opacity: 0.45 } }

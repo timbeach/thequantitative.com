@@ -43,6 +43,14 @@ export const REGISTRY = [
     needs: ['microphone'],
     load: () => import('../instruments/tuner.js'),
   },
+  {
+    id: 'jump',
+    name: 'Jump Height',
+    category: 'world',
+    blurb: 'Hold the phone and jump. Measured from hang time.',
+    needs: ['motion'],
+    load: () => import('../instruments/jump.js'),
+  },
 ]
 
 /**
