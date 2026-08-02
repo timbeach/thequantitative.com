@@ -51,6 +51,14 @@ export const REGISTRY = [
     needs: ['motion'],
     load: () => import('../instruments/jump.js'),
   },
+  {
+    id: 'sky',
+    name: 'Sky Pointer',
+    category: 'world',
+    blurb: 'Point at the sky. See what is there, and when its light left.',
+    needs: ['motion', 'geolocation'],
+    load: () => import('../instruments/sky.js'),
+  },
 ]
 
 /**

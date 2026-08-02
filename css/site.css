@@ -327,3 +327,42 @@ body[data-route='instrument'] .sheet { display: none; }
 .jump--best .jump__main .readout { color: var(--ink); }
 .jump--best .jump__main { animation: jump-flash 0.45s ease-out 2; }
 @keyframes jump-flash { 0%, 100% { opacity: 1 } 50% { opacity: 0.45 } }
+
+/* ── Sky Pointer ──────────────────────────────────────────────────────── */
+.sky { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; flex: 1; width: 100%; }
+.sky__id { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; width: 100%; overflow: hidden; text-align: center; }
+/* Longest catalogue name is ten glyphs ("Betelgeuse", "Rasalhague", "Menkalinan");
+   "Whole sky" and "No match" are shorter fallbacks. Sized for the ten-glyph
+   worst case at Plex Mono's 0.6em advance, with overflow as a hard backstop —
+   see the Spirit Level note on .readout's 18vw assuming a single short value. */
+.sky__name { font-size: min(2.5rem, 11vw); line-height: 1.1; color: var(--signal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sky__caveat { text-align: center; max-width: 26rem; }
+/* Same shape as .tuner__spec / .galton__board: `flex: 1 1 0px` and `min-height: 0`
+   are both required, neither is sufficient — a percentage flex-basis falls back
+   to the canvas's intrinsic 300×150 when the ancestor chain has no definite
+   height, which is exactly .stage's situation here (min-height, not height). */
+.sky__canvas { width: 100%; flex: 1 1 0px; min-height: 0; background: var(--void); }
+.sky__light { margin: 0; text-align: center; font-size: 0.9375rem; overflow: hidden; overflow-wrap: anywhere; }
+.sky__stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem 1rem; width: 100%; max-width: 22rem; overflow: hidden; }
+.sky__stat { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; min-width: 0; }
+/* Four readouts share two rows of two. Worst case per cell is six glyphs
+   ("-90.0°", "359.9°"), well short of .readout's 18vw single-value assumption. */
+.sky__stat .readout { font-size: min(2rem, 9vw); white-space: nowrap; }
+.sky__polaris, .sky__clock { margin: 0; text-align: center; }
+
+/* Short landscape phones (this instrument carries more text rows than any
+   other on the shelf — id block, light-left line, four stats, a caveat and
+   two facts — and the plain portrait sizing above overflows a ~324px stage
+   budget on its own, before the canvas claims any space at all. Compacting
+   text here, not hiding it, keeps every honesty-critical line on screen: the
+   compass caveat and the Polaris line are load-bearing, not decoration. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .sky { gap: 0.3rem; }
+  .sky__id { gap: 0.1rem; }
+  .sky__name { font-size: min(1.5rem, 6vw); }
+  .sky__light { font-size: 0.8125rem; }
+  .sky__stats { grid-template-columns: repeat(4, 1fr); gap: 0.2rem 0.5rem; max-width: none; }
+  .sky__stat .readout { font-size: min(1.125rem, 4.5vw); }
+  .sky__caveat { max-width: none; font-size: 0.625rem; }
+  .sky__polaris, .sky__clock { font-size: 0.625rem; }
+}
