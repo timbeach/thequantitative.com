@@ -1,6 +1,6 @@
 // @ts-check
 import { createScope } from './scope.js'
-import { readEnv, isIos } from './capability.js'
+import { readEnv, isIos, detectCapabilities } from './capability.js'
 
 /** @typedef {import('./types.js').Ctx} Ctx */
 /** @typedef {import('./types.js').Vec3} Vec3 */
@@ -81,6 +81,9 @@ export function createCtx(win, namespace) {
   let pending = false
   let wired = false
 
+  /** @type {Promise<boolean> | null} */
+  let motionPermission = null
+
   /** @type {AudioContext | null} */
   let audioCtx = null
   /** @type {Promise<MediaStreamAudioSourceNode> | null} */
@@ -108,6 +111,40 @@ export function createCtx(win, namespace) {
     on: (target, type, fn, opts) => scope.on(target, type, fn, opts),
     signal: scope.signal,
     store: createStore(namespace),
+
+    // For capabilities an instrument offers *optionally* rather than
+    // declaring via `needs` — the Double Pendulum's tilt toggle is the first.
+    // Must be called synchronously from within the caller's click handler,
+    // exactly like js/arm.js's grant('motion'): no `await` may precede the
+    // requestPermission() calls below, or iOS treats the gesture as spent and
+    // silently denies. Memoised so a second tap never re-prompts.
+    requestMotion() {
+      if (motionPermission) return motionPermission
+
+      const state = detectCapabilities(readEnv()).motion
+      /** @type {Promise<boolean>} */
+      let result
+      if (state === 'unavailable') {
+        result = Promise.resolve(false)
+      } else if (state === 'available') {
+        result = Promise.resolve(true)
+      } else {
+        // needs-permission: iOS gates DeviceOrientationEvent separately from
+        // DeviceMotionEvent, and both must be requested from this same gesture
+        // or the orientation stream silently never fires later. Fired here,
+        // synchronously, before any await breaks the gesture context.
+        const DME = /** @type {any} */ (win).DeviceMotionEvent
+        const DOE = /** @type {any} */ (win).DeviceOrientationEvent
+        if (typeof DOE?.requestPermission === 'function') {
+          DOE.requestPermission().catch(() => {})
+        }
+        result = DME.requestPermission()
+          .then((/** @type {string} */ perm) => perm === 'granted')
+          .catch(() => false)
+      }
+      motionPermission = result
+      return result
+    },
 
     motion(fn) {
       let last = 0

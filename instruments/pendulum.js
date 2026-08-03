@@ -3,6 +3,7 @@ import { advance, energy, separation, DEFAULT_PARAMS } from '../dsp/pendulum.js'
 
 /** @typedef {import('../js/types.js').Instrument} Instrument */
 /** @typedef {import('../js/types.js').Ctx} Ctx */
+/** @typedef {import('../js/types.js').Vec3} Vec3 */
 /** @typedef {import('../dsp/pendulum.js').State} State */
 
 // Two pendulums start this far apart in theta1 and nowhere else. This is the
@@ -27,6 +28,22 @@ const LOG_MAX = 10          // above pi*sqrt(2), the largest separation() can re
 // outside that band ln(sep/sep0)/t is measuring integration noise, not chaos.
 const LYAP_LO = 10 * PERTURB
 const LYAP_HI = 1.0
+
+// Tilt gravity: the accelerometer's in-plane component is fed straight in as
+// g. A hard shake can spike that magnitude well past standard gravity, and
+// RK4 with a large forcing term is exactly how an integrator reaches NaN —
+// so it is capped at roughly 3x standard gravity. That is generous enough to
+// swing the pendulum hard without ever being the reason it breaks.
+const TILT_GRAVITY_CLAMP = DEFAULT_PARAMS.g * 3
+// Below this in-plane magnitude the direction is noise, not a tilt — hold the
+// last angle rather than let atan2(~0, ~0) chatter. At this magnitude gravity
+// itself is negligible in the equations of motion, so the direction held here
+// has no visible effect on the physics either way.
+const TILT_DIRECTION_FLOOR = 1e-6
+
+const TILT_NOTE = 'Gravity now follows the phone’s accelerometer — the ' +
+  'effective gravity a pendulum bolted to the phone would feel. Rotating the ' +
+  'phone about the pivot itself is not modelled.'
 
 /** @param {number} v @param {number} lo @param {number} hi */
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
@@ -97,7 +114,9 @@ export default {
         <p class="pend__hint label" data-hint>drag to set the starting angle, release to run</p>
         <div class="pend__actions">
           <button class="arm__button arm__button--quiet" type="button" data-reset>Reset</button>
+          <button class="arm__button arm__button--quiet" type="button" data-tilt aria-pressed="false">Tilt gravity</button>
         </div>
+        <p class="pend__caveat card__reason" data-tilt-note hidden></p>
       </div>`
 
     const $ = (/** @type {string} */ s) => /** @type {HTMLElement} */ (root.querySelector(s))
@@ -106,7 +125,9 @@ export default {
     const vg = /** @type {CanvasRenderingContext2D} */ (view.getContext('2d'))
     const stg = /** @type {CanvasRenderingContext2D} */ (strip.getContext('2d'))
 
-    const params = DEFAULT_PARAMS
+    // Reassigned every frame when tilt is active — see the gravity/tilt block
+    // in the raf loop below. l1/l2/m1/m2 never change, only g/gravityAngle do.
+    let params = DEFAULT_PARAMS
 
     const styles = getComputedStyle(document.documentElement)
     const SIGNAL = styles.getPropertyValue('--signal').trim() || '#ffb000'
@@ -194,6 +215,69 @@ export default {
     })
 
     ctx.on($('[data-reset]'), 'click', resetRun)
+
+    // ── tilt gravity ───────────────────────────────────────────────────────
+    // Opt-in, from inside the instrument's own tap — not declared via `needs`,
+    // so the shelf card and desktop use stay permission-free. See js/ctx.js:
+    // requestMotion() must be called synchronously from this click handler or
+    // iOS treats the gesture as spent.
+    const tiltBtn = /** @type {HTMLButtonElement} */ ($('[data-tilt]'))
+    const tiltNote = $('[data-tilt-note]')
+
+    let tiltEnabled = false
+    let tiltWired = false
+    /** @type {Vec3} */
+    let latestGravity = { x: 0, y: 0, z: 0 }
+    let haveGravitySample = false
+    let tiltAngle = 0
+
+    /** @param {string} text */
+    function setTiltNote(text) {
+      tiltNote.textContent = text
+      tiltNote.hidden = text === ''
+    }
+
+    function setTiltUi() {
+      tiltBtn.textContent = tiltEnabled ? 'Stop tilting' : 'Tilt gravity'
+      tiltBtn.setAttribute('aria-pressed', String(tiltEnabled))
+    }
+    setTiltUi()
+
+    ctx.on(tiltBtn, 'click', () => {
+      if (tiltEnabled) {
+        tiltEnabled = false
+        setTiltUi()
+        setTiltNote('')
+        // Not persisted as "on": the sensor stream needs a fresh gesture-
+        // granted permission on reload (iOS in particular never remembers
+        // it), so restoring "on" from storage on mount would either do
+        // nothing or require auto-requesting — which the brief for this
+        // instrument explicitly rules out. The store still records the
+        // user's last choice for anything downstream that wants it.
+        ctx.store.set('tilt', false)
+        return
+      }
+
+      // Must run synchronously into ctx.requestMotion() — see the comment
+      // above. Everything after this call may freely be async.
+      ctx.requestMotion().then((ok) => {
+        if (!ok) {
+          setTiltNote('Motion access isn’t available — the simulation continues as normal.')
+          return
+        }
+        if (!tiltWired) {
+          tiltWired = true
+          ctx.motion((g) => {
+            latestGravity = g
+            haveGravitySample = true
+          })
+        }
+        tiltEnabled = true
+        setTiltUi()
+        setTiltNote(TILT_NOTE)
+        ctx.store.set('tilt', true)
+      })
+    })
 
     // ── sizing ─────────────────────────────────────────────────────────────
     let lastViewW = -1, lastViewH = -1, lastStripW = -1, lastStripH = -1
@@ -357,6 +441,26 @@ export default {
       const dt = Math.min(rawDt, MAX_FRAME_DT)
 
       resize()
+
+      // Tilt: derive g/gravityAngle from the sensor. In-plane magnitude is
+      // hypot(x,y) of the device-frame gravity vector (see js/ctx.js and
+      // dsp/tilt.js — +x is the screen's right edge, +y is its top edge).
+      // Screen-down in that frame is (-x, +y): x flips because "down" is
+      // opposite "up", y does NOT flip because the device frame's y-up is
+      // already the opposite sense of canvas y-down, so the two flips cancel
+      // on that axis. theta is measured the same way angleFromPointer reads
+      // a drag: atan2(dx, dy) with 0 = straight down. Confirmed against the
+      // codebase's own tested convention (dsp/tilt.js: right edge raised ==
+      // g.x > 0) in the render harness — see task-2-report.md.
+      if (tiltEnabled && haveGravitySample) {
+        const gx = latestGravity.x
+        const gy = latestGravity.y
+        const gMag = clamp(Math.hypot(gx, gy), 0, TILT_GRAVITY_CLAMP)
+        if (gMag > TILT_DIRECTION_FLOOR) tiltAngle = Math.atan2(-gx, gy)
+        params = { ...DEFAULT_PARAMS, g: gMag, gravityAngle: tiltAngle }
+      } else {
+        params = DEFAULT_PARAMS
+      }
 
       if (mode === 'running') {
         const substeps = Math.max(1, Math.round(dt * HZ))

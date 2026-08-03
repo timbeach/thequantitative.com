@@ -476,7 +476,10 @@ body[data-route='instrument'] .sheet { display: none; }
    .pend__view for the vertical space the pendulum itself needs. */
 .pend__strip { width: 100%; height: min(6rem, 18vh); flex: 0 0 auto; background: var(--void); }
 .pend__hint { margin: 0; text-align: center; }
-.pend__actions { display: flex; justify-content: center; }
+.pend__actions { display: flex; justify-content: center; gap: 0.5rem; }
+/* Same shape as .sky__caveat: centered, capped width, quiet reason-text color.
+   Empty and [hidden] between "tap to enable" and an actual outcome. */
+.pend__caveat { text-align: center; max-width: 26rem; }
 
 /* Same short-landscape-phone budget as the Sky Pointer (real 568×320 device,
    ~264px of stage height once the masthead and padding are subtracted):
@@ -488,4 +491,5 @@ body[data-route='instrument'] .sheet { display: none; }
   .pend__stat .readout { font-size: min(1rem, 4vw); }
   .pend__strip { height: min(3.5rem, 14vh); }
   .pend__hint { font-size: 0.625rem; }
+  .pend__caveat { max-width: none; font-size: 0.625rem; }
 }

@@ -27,6 +27,9 @@
  * @property {(fn:(t:number) => void) => void} raf            Self-rescheduling loop, cancelled on unmount
  * @property {(target:EventTarget, type:string, fn:EventListener, opts?:AddEventListenerOptions) => void} on
  * @property {(fn:(g:Vec3, dt:number) => void) => void} motion Gravity vector in device frame, sign-normalised
+ * @property {() => Promise<boolean>} requestMotion Requests motion permission from the caller's own click/tap
+ * gesture — for capabilities an instrument offers optionally rather than declaring via `needs`. Resolves true
+ * once `motion()` is usable, false if declined or unavailable. Memoised: a second call never re-prompts.
  * @property {AbortSignal} signal
  * @property {Store} store
  * @property {() => void} wakeLock                            Best-effort; no-op where unsupported
