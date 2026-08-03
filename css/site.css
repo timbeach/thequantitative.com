@@ -451,3 +451,41 @@ body[data-route='instrument'] .sheet { display: none; }
   .sky__caveat { max-width: none; font-size: 0.625rem; }
   .sky__polaris, .sky__clock { font-size: 0.625rem; }
 }
+
+/* ── Double Pendulum ──────────────────────────────────────────────────── */
+.pend { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; flex: 1; width: 100%; }
+.pend__readouts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.35rem 1rem;
+  width: 100%;
+  max-width: 26rem;
+  overflow: hidden;
+}
+.pend__stat { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; min-width: 0; }
+/* Widest cell is energy drift, e.g. "-9.27e-6%" — nine glyphs at Plex Mono's
+   0.6em advance. Same trap noted throughout this file: .readout's 18vw
+   assumes a single value spanning the screen, not four sharing a grid. */
+.pend__stat .readout { font-size: min(1.375rem, 6.5vw); white-space: nowrap; }
+/* `flex: 1 1 0px` and `min-height: 0` are both required, neither is
+   sufficient — see the identical note on .galton__board and .tuner__spec.
+   touch-action: none stops the page from scrolling while a drag is setting
+   the starting angle. */
+.pend__view { width: 100%; flex: 1 1 0px; min-height: 0; background: var(--void); touch-action: none; }
+/* A strip, not a growing panel: fixed height so it never competes with
+   .pend__view for the vertical space the pendulum itself needs. */
+.pend__strip { width: 100%; height: min(6rem, 18vh); flex: 0 0 auto; background: var(--void); }
+.pend__hint { margin: 0; text-align: center; }
+.pend__actions { display: flex; justify-content: center; }
+
+/* Same short-landscape-phone budget as the Sky Pointer (real 568×320 device,
+   ~264px of stage height once the masthead and padding are subtracted):
+   compact the readouts to one row and shrink the strip rather than letting
+   either crowd out .pend__view, which is the point of the instrument. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .pend { gap: 0.3rem; }
+  .pend__readouts { grid-template-columns: repeat(4, 1fr); gap: 0.2rem 0.5rem; max-width: none; }
+  .pend__stat .readout { font-size: min(1rem, 4vw); }
+  .pend__strip { height: min(3.5rem, 14vh); }
+  .pend__hint { font-size: 0.625rem; }
+}

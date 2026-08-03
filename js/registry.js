@@ -59,6 +59,14 @@ export const REGISTRY = [
     needs: ['motion', 'geolocation'],
     load: () => import('../instruments/sky.js'),
   },
+  {
+    id: 'pendulum',
+    name: 'Double Pendulum',
+    category: 'ideas',
+    blurb: 'Two pendulums, a millionth of a radian apart.',
+    needs: [],
+    load: () => import('../instruments/pendulum.js'),
+  },
 ]
 
 /**
