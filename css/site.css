@@ -337,6 +337,11 @@ body[data-route='instrument'] .sheet { display: none; }
    see the Spirit Level note on .readout's 18vw assuming a single short value. */
 .sky__name { font-size: min(2.5rem, 11vw); line-height: 1.1; color: var(--signal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .sky__caveat { text-align: center; max-width: 26rem; }
+/* .sky__view carries the flex/min-height pair that used to sit directly on
+   the canvas (see the note this replaces, below) so a .sky__panel can be
+   absolutely positioned over the canvas alone — never over .sky__id or
+   .sky__stats, which are its siblings, not its descendants. */
+.sky__view { position: relative; display: flex; width: 100%; flex: 1 1 0px; min-height: 0; }
 /* Same shape as .tuner__spec / .galton__board: `flex: 1 1 0px` and `min-height: 0`
    are both required, neither is sufficient — a percentage flex-basis falls back
    to the canvas's intrinsic 300×150 when the ancestor chain has no definite
@@ -348,6 +353,83 @@ body[data-route='instrument'] .sheet { display: none; }
 /* Four readouts share two rows of two. Worst case per cell is six glyphs
    ("-90.0°", "359.9°"), well short of .readout's 18vw single-value assumption. */
 .sky__stat .readout { font-size: min(2rem, 9vw); white-space: nowrap; }
+/* Corner overlay rather than a flex row in .sky's column: this instrument's
+   portrait layout already fills its landscape budget with text alone (see
+   the note below), so a control that needs a place to live without costing
+   any flow height goes here, absolute within .sky__view exactly like
+   .sky__panel — confirmed this leaves zero-overflow landscape stages
+   (down to a real 568×320 device) unchanged from before it existed. */
+.sky__mode {
+  position: absolute;
+  top: 0.5rem; left: 0.5rem;
+  max-width: calc(100% - 1rem);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.sky__mode-btn {
+  font: inherit;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--surface);
+  color: var(--ink-label);
+  border: 1px solid var(--edge);
+  border-radius: 0.375rem;
+  padding: 0.45rem 0.7rem;
+  min-height: 2rem;   /* still a real tap target, just not a full-width CTA */
+  cursor: pointer;
+}
+.sky__mode-hint {
+  display: block;
+  font-size: 0.625rem;
+  line-height: 1.3;
+  color: var(--ink-dim);
+  background: var(--surface);
+  border-radius: 0.25rem;
+  padding: 0.2rem 0.4rem;
+  max-width: 11rem;
+}
+/* Tap-to-inspect panel: confined to .sky__view (the canvas's own box), so it
+   can never cover the id block or the stats grid above/below it — those are
+   outside this stacking context entirely, not merely visually avoided. */
+.sky__panel {
+  position: absolute;
+  left: 0.5rem; right: 0.5rem; bottom: 0.5rem;
+  max-height: calc(100% - 1rem);
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: 0.5rem;
+  padding: 0.6rem 2rem 0.6rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  z-index: 2;
+}
+.sky__panel[hidden] { display: none; }
+.sky__panel-dismiss {
+  position: absolute;
+  top: 0.3rem; right: 0.4rem;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  background: none;
+  border: 0;
+  color: var(--ink-label);
+  padding: 0.4rem;
+  cursor: pointer;
+}
+.sky__panel-name {
+  display: block;
+  color: var(--signal);
+  font-size: 1rem;
+  margin-bottom: 0.3rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sky__panel-row { display: flex; justify-content: space-between; gap: 0.5rem; overflow: hidden; }
+.sky__panel-light { margin: 0.3rem 0 0; color: var(--ink-label); font-size: 0.75rem; overflow-wrap: anywhere; }
 .sky__polaris, .sky__clock { margin: 0; text-align: center; }
 
 /* Short landscape phones (this instrument carries more text rows than any
@@ -355,7 +437,10 @@ body[data-route='instrument'] .sheet { display: none; }
    two facts — and the plain portrait sizing above overflows a ~324px stage
    budget on its own, before the canvas claims any space at all. Compacting
    text here, not hiding it, keeps every honesty-critical line on screen: the
-   compass caveat and the Polaris line are load-bearing, not decoration. */
+   compass caveat and the Polaris line are load-bearing, not decoration.
+   .sky__mode and .sky__panel are absolute within .sky__view, so they cost no
+   flow height and need no entry here — confirmed this leaves a real 568×320
+   device (iPhone SE landscape) exactly as it was before either existed. */
 @media (orientation: landscape) and (max-height: 500px) {
   .sky { gap: 0.3rem; }
   .sky__id { gap: 0.1rem; }
