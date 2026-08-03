@@ -13,10 +13,14 @@
  * @property {number} l2 lower arm length, m
  * @property {number} m1 upper bob mass, kg
  * @property {number} m2 lower bob mass, kg
+ * @property {number} gravityAngle direction gravity points, radians, measured
+ * the same way as θ1/θ2 (0 = straight down). Lets gravity be a vector rather
+ * than always pointing along the θ=0 axis — e.g. to drive the pendulum from a
+ * phone accelerometer.
  */
 
 /** @type {Params} */
-export const DEFAULT_PARAMS = { g: 9.81, l1: 1, l2: 1, m1: 1, m2: 1 }
+export const DEFAULT_PARAMS = { g: 9.81, l1: 1, l2: 1, m1: 1, m2: 1, gravityAngle: 0 }
 
 /**
  * Time derivative of the state under the standard double-pendulum
@@ -32,7 +36,7 @@ export const DEFAULT_PARAMS = { g: 9.81, l1: 1, l2: 1, m1: 1, m2: 1 }
  */
 export function derivative(state, params) {
   const [t1, t2, w1, w2] = state
-  const { g, l1, l2, m1, m2 } = params
+  const { g, l1, l2, m1, m2, gravityAngle: phi } = params
 
   const dt = t1 - t2
   const sinDt = Math.sin(dt)
@@ -40,15 +44,15 @@ export function derivative(state, params) {
   const denom = 2 * m1 + m2 - m2 * Math.cos(2 * dt)
 
   const num1 =
-    -g * (2 * m1 + m2) * Math.sin(t1) -
-    m2 * g * Math.sin(t1 - 2 * t2) -
+    -g * (2 * m1 + m2) * Math.sin(t1 - phi) -
+    m2 * g * Math.sin(t1 - 2 * t2 + phi) -
     2 * sinDt * m2 * (w2 * w2 * l2 + w1 * w1 * l1 * cosDt)
   const a1 = num1 / (l1 * denom)
 
   const num2 =
     2 * sinDt *
     (w1 * w1 * l1 * (m1 + m2) +
-      g * (m1 + m2) * Math.cos(t1) +
+      g * (m1 + m2) * Math.cos(t1 - phi) +
       w2 * w2 * l2 * m2 * cosDt)
   const a2 = num2 / (l2 * denom)
 
@@ -114,10 +118,10 @@ export function advance(state, params, dt, substeps) {
 
 /**
  * Total mechanical energy (kinetic + potential), zeroed at both bobs
- * hanging straight down (θ1 = θ2 = 0).
+ * hanging along gravity (θ1 = θ2 = gravityAngle).
  *
  * KE = ½m₁(l₁ω₁)² + ½m₂[(l₁ω₁)² + (l₂ω₂)² + 2l₁l₂ω₁ω₂cos(θ₁−θ₂)]
- * PE = −(m₁+m₂)g·l₁cos θ₁ − m₂g·l₂cos θ₂
+ * PE = −(m₁+m₂)g·l₁cos(θ₁−φ) − m₂g·l₂cos(θ₂−φ)
  *
  * @param {State} state
  * @param {Params} params
@@ -125,14 +129,14 @@ export function advance(state, params, dt, substeps) {
  */
 export function energy(state, params) {
   const [t1, t2, w1, w2] = state
-  const { g, l1, l2, m1, m2 } = params
+  const { g, l1, l2, m1, m2, gravityAngle: phi } = params
 
   const v1sq = l1 * l1 * w1 * w1
   const v2sq = l2 * l2 * w2 * w2
   const cross = 2 * l1 * l2 * w1 * w2 * Math.cos(t1 - t2)
 
   const ke = 0.5 * m1 * v1sq + 0.5 * m2 * (v1sq + v2sq + cross)
-  const pe = -(m1 + m2) * g * l1 * Math.cos(t1) - m2 * g * l2 * Math.cos(t2)
+  const pe = -(m1 + m2) * g * l1 * Math.cos(t1 - phi) - m2 * g * l2 * Math.cos(t2 - phi)
 
   return ke + pe
 }

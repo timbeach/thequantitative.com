@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  rk4Step, advance, energy, separation, DEFAULT_PARAMS,
+  rk4Step, advance, energy, separation, derivative, DEFAULT_PARAMS,
 } from '../dsp/pendulum.js'
 
 const P = DEFAULT_PARAMS
@@ -184,4 +184,73 @@ test('ENERGY IS CONSERVED WITH UNEQUAL MASSES — m1 and m2 are not interchangea
   for (let i = 0; i < 20 / dt; i++) s = rk4Step(s, P2, dt)
   const drift = Math.abs((energy(s, P2) - E0) / E0)
   assert.ok(drift < 1e-4, `energy drifted by ${drift.toExponential(2)} over 20 s with m1=1, m2=3`)
+})
+
+test('gravityAngle 0 is bit-identical to the ungeneralised equations', () => {
+  // A strict generalisation: this is what guarantees the existing 14 tests,
+  // and the chaos demonstration, are untouched.
+  const withAngle = { ...DEFAULT_PARAMS, gravityAngle: 0 }
+  for (const s of [[1.2, 0.7, 0.3, -0.2], [0.1, -0.4, 0, 0], [2.5, 1.1, -1, 2]]) {
+    const a = derivative(/** @type {any} */ (s), DEFAULT_PARAMS)
+    const b = derivative(/** @type {any} */ (s), withAngle)
+    a.forEach((v, i) => assert.equal(v, b[i], `component ${i} differed`))
+  }
+})
+
+test('THE REST POSITION FOLLOWS GRAVITY', () => {
+  for (const deg of [0, 20, 45, -30, 90]) {
+    const phi = (deg * Math.PI) / 180
+    const p = { ...DEFAULT_PARAMS, gravityAngle: phi }
+    let s = /** @type {any} */ ([phi, phi, 0, 0])
+    for (let i = 0; i < 2400; i++) s = rk4Step(s, p, 1 / 240)
+    const moved = Math.hypot(s[0] - phi, s[1] - phi)
+    assert.ok(moved < 1e-9, `phi=${deg} deg drifted ${moved} from equilibrium`)
+  }
+})
+
+test('a hanging pendulum swings TOWARD tilted gravity', () => {
+  const phi = Math.PI / 4
+  const p = { ...DEFAULT_PARAMS, gravityAngle: phi }
+  let s = /** @type {any} */ ([0, 0, 0, 0])
+  for (let i = 0; i < 180; i++) s = rk4Step(s, p, 1 / 240)
+  assert.ok(s[0] > 0.1, `expected a swing toward +45 deg, theta1 reached ${s[0]}`)
+  assert.ok(s[0] < phi * 3, 'and it should not overshoot absurdly')
+})
+
+test('zero gravity leaves a resting pendulum at rest', () => {
+  // Phone laid flat: in-plane gravity vanishes and the arms are weightless.
+  const p = { ...DEFAULT_PARAMS, g: 0 }
+  let s = /** @type {any} */ ([1.0, 0.5, 0, 0])
+  for (let i = 0; i < 2400; i++) s = rk4Step(s, p, 1 / 240)
+  assert.equal(Math.hypot(s[2], s[3]), 0, 'no gravity, no acceleration')
+  assert.equal(s[0], 1.0)
+})
+
+test('zero gravity preserves existing angular momentum', () => {
+  const p = { ...DEFAULT_PARAMS, g: 0 }
+  let s = /** @type {any} */ ([1.0, 0.5, 0.4, -0.2])
+  const E0 = energy(s, p)
+  for (let i = 0; i < 2400; i++) s = rk4Step(s, p, 1 / 240)
+  const drift = Math.abs((energy(s, p) - E0) / E0)
+  assert.ok(drift < 1e-6, `energy drifted ${drift} with no gravity`)
+})
+
+test('energy accounts for the gravity direction', () => {
+  const phi = Math.PI / 3
+  const p = { ...DEFAULT_PARAMS, gravityAngle: phi }
+  // Hanging along gravity is the minimum-energy state for that direction.
+  const along = energy(/** @type {any} */ ([phi, phi, 0, 0]), p)
+  for (const off of [0, 0.5, -0.5, Math.PI]) {
+    assert.ok(energy(/** @type {any} */ ([phi + off || 0.2, phi, 0, 0]), p) >= along - 1e-9,
+      'no state may sit below the hanging state')
+  }
+})
+
+test('energy is conserved with gravity tilted', () => {
+  const p = { ...DEFAULT_PARAMS, gravityAngle: 0.7 }
+  const s0 = /** @type {any} */ ([Math.PI / 2 + 0.4, Math.PI / 2, 0, 0])
+  const E0 = energy(s0, p)
+  let s = s0
+  for (let i = 0; i < 240 * 30; i++) s = rk4Step(s, p, 1 / 240)
+  assert.ok(Math.abs((energy(s, p) - E0) / E0) < 1e-4, 'tilted gravity must still conserve energy')
 })
