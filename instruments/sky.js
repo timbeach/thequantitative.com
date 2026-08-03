@@ -106,7 +106,10 @@ export default {
     let heading = null
     /** @type {number | null} */
     let headingAcc = null
-    ctx.orientation((h, acc) => { heading = h; headingAcc = acc })
+    // Task 3 rewires this to consume the full orientation via dsp/pointing.js;
+    // for now, take alpha as the heading scalar to keep this instrument
+    // compiling against ctx.orientation's new full-reading shape.
+    ctx.orientation(({ alpha, accuracyDeg }) => { heading = alpha; headingAcc = accuracyDeg })
 
     ctx.wakeLock()
 

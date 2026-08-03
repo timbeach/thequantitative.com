@@ -33,7 +33,17 @@
  * @property {() => AudioContext} audio                     Shared, closed on unmount
  * @property {() => Promise<MediaStreamAudioSourceNode>} mic Stream stopped on unmount
  * @property {() => Promise<{ latitude:number, longitude:number, accuracyM:number }>} location One fix per mount, memoised
- * @property {(fn:(heading:number|null, accuracyDeg:number|null) => void) => void} orientation Compass heading, true-north only; null when unavailable
+ * @property {(fn:(reading:OrientationReading) => void) => void} orientation Full device orientation each frame
+ */
+
+/**
+ * @typedef {Object} OrientationReading
+ * @property {number|null} alpha    Absolute heading in degrees, true-north-relative-to-magnetic-frame; null when no absolute reference is available
+ * @property {number|null} beta     Front-back tilt in degrees, accelerometer/gyro-derived; absolute w.r.t. gravity regardless of compass state
+ * @property {number|null} gamma    Left-right tilt in degrees, accelerometer/gyro-derived; absolute w.r.t. gravity regardless of compass state
+ * @property {boolean} absolute     Whether alpha is a true absolute heading; false means alpha is null and the instrument must fall back
+ * @property {number} screenAngle   Screen rotation angle in degrees, needed to correct alpha/beta/gamma for screen rotation
+ * @property {number|null} accuracyDeg Reported heading accuracy in degrees, when the platform provides one
  */
 
 /**

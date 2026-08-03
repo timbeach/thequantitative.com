@@ -210,19 +210,30 @@ export function createCtx(win, namespace) {
 
       /** @param {any} e */
       const emitFrom = (e) => {
+        const beta = typeof e.beta === 'number' ? e.beta : null
+        const gamma = typeof e.gamma === 'number' ? e.gamma : null
+        const screenAngle = /** @type {any} */ (win).screen?.orientation?.angle ?? 0
+
+        // Only an absolute reference is worth reporting as alpha — a relative
+        // alpha is relative to wherever the page happened to start and
+        // drifts, so it would confidently point at the wrong sky.
         const compass = e.webkitCompassHeading
         if (typeof compass === 'number') {
-          fn(compass, e.webkitCompassAccuracy ?? null)
+          fn({
+            alpha: 360 - compass,
+            beta,
+            gamma,
+            absolute: true,
+            screenAngle,
+            accuracyDeg: e.webkitCompassAccuracy ?? null,
+          })
           return
         }
-        // Only 360 - alpha is a true compass heading; a non-absolute alpha is
-        // relative to wherever the page happened to start and drifts, so it is
-        // reported as null rather than confidently pointing at the wrong sky.
         if (e.absolute === true && typeof e.alpha === 'number') {
-          fn(360 - e.alpha, null)
+          fn({ alpha: e.alpha, beta, gamma, absolute: true, screenAngle, accuracyDeg: null })
           return
         }
-        fn(null, null)
+        fn({ alpha: null, beta, gamma, absolute: false, screenAngle, accuracyDeg: null })
       }
 
       scope.on(win, 'deviceorientationabsolute', (/** @type {Event} */ event) => {
