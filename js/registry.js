@@ -75,6 +75,14 @@ export const REGISTRY = [
     needs: ['motion'],
     load: () => import('../instruments/seismo.js'),
   },
+  {
+    id: 'pulse',
+    name: 'Heart Rate',
+    category: 'world',
+    blurb: 'Cover the camera with a fingertip.',
+    needs: ['camera'],
+    load: () => import('../instruments/pulse.js'),
+  },
 ]
 
 /**

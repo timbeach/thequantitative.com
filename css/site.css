@@ -539,3 +539,40 @@ body[data-route='instrument'] .sheet { display: none; }
   .seis__scale { font-size: 0.625rem; top: 0.3rem; right: 0.5rem; }
   .seis__caveat { max-width: none; font-size: 0.625rem; }
 }
+
+/* ── Heart Rate ───────────────────────────────────────────────────────── */
+.pulse { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; flex: 1; width: 100%; }
+.pulse__main { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; width: 100%; overflow: hidden; }
+.pulse__main .readout { font-size: min(5rem, 26vw); white-space: nowrap; line-height: 1; }
+.pulse__gauge { width: 100%; max-width: 20rem; height: 0.4rem; background: var(--hairline); border: 1px solid var(--edge); border-radius: 999px; overflow: hidden; }
+/* Dim while buffering or refused, --signal only once a reading is live —
+   the gauge visually doubles as fill progress and confidence meter, so its
+   color is itself part of the honesty gate: it never turns --signal for a
+   number that hasn't earned it. */
+.pulse__gauge-fill { height: 100%; width: 0%; background: var(--ink-dim); }
+.pulse__gauge-fill--live { background: var(--signal); }
+.pulse__gauge-label { text-align: center; }
+/* Same shape as .seis__strip / .tuner__spec: `flex: 1 1 0px` and
+   `min-height: 0` are both required, neither is sufficient — see the note on
+   .tuner__spec for the full mechanism. This is the instrument's "wow" and
+   gets whatever vertical space is left over. */
+.pulse__wave { width: 100%; flex: 1 1 0px; min-height: 0; background: var(--void); }
+/* Reserve a line so the layout doesn't jump when the hint text appears and
+   disappears between states. */
+.pulse__hint { text-align: center; max-width: 26rem; margin: 0; min-height: 1em; line-height: 1.35; }
+.pulse__instructions { text-align: center; max-width: 26rem; margin: 0.3rem 0 0; line-height: 1.35; }
+.pulse__torch-note { text-align: center; max-width: 26rem; margin: 0.2rem 0 0; line-height: 1.35; }
+.pulse__actions { display: flex; justify-content: center; }
+
+/* Same short-landscape-phone budget noted throughout this file (real
+   568×320 device, ~264px of stage height once the masthead and padding are
+   subtracted): compact the readout and text so the waveform — the point of
+   the instrument — keeps most of the space. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .pulse { gap: 0.25rem; }
+  .pulse__main { gap: 0.15rem; }
+  .pulse__main .readout { font-size: min(2rem, 8vw); }
+  .pulse__gauge { max-width: none; }
+  .pulse__gauge-label { font-size: 0.625rem; }
+  .pulse__hint, .pulse__instructions, .pulse__torch-note { max-width: none; font-size: 0.625rem; }
+}
