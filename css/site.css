@@ -493,3 +493,43 @@ body[data-route='instrument'] .sheet { display: none; }
   .pend__hint { font-size: 0.625rem; }
   .pend__caveat { max-width: none; font-size: 0.625rem; }
 }
+
+/* ── Seismograph ──────────────────────────────────────────────────────── */
+.seis { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; flex: 1; width: 100%; }
+.seis__readouts { display: flex; justify-content: space-evenly; width: 100%; gap: 1rem; overflow: hidden; }
+.seis__stat { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; min-width: 0; }
+/* Three readouts share the width — same trap noted throughout this file:
+   .readout's 18vw assumes a single value spanning the screen. Worst case is
+   the noise floor at three decimals, e.g. "0.012" — six glyphs. */
+.seis__stat .readout { font-size: min(1.75rem, 7vw); white-space: nowrap; }
+/* `flex: 1 1 0px` and `min-height: 0` are both required, neither is
+   sufficient — see the identical note on .galton__board, .tuner__spec and
+   .sky__canvas. .seis__view is the positioning root for the scale label,
+   which is drawn as DOM text over the canvas rather than into it so it stays
+   crisp at any zoom and never fights the canvas's own devicePixelRatio math. */
+.seis__view { position: relative; display: flex; width: 100%; flex: 1 1 0px; min-height: 0; }
+.seis__strip { width: 100%; flex: 1 1 0px; min-height: 0; background: var(--void); }
+.seis__scale { position: absolute; top: 0.5rem; right: 0.75rem; color: var(--ink-dim); }
+/* .card__reason supplies its own margin-top; the UA stylesheet's default
+   <p> margin-bottom survives that because it's a different longhand. On the
+   568×320 landscape budget below, that leftover ~18px was most of the
+   difference between a usable strip and a 12px sliver — reset explicitly
+   rather than relying on two unrelated rules to net out to something sane. */
+.seis__caveat { text-align: center; max-width: 26rem; margin: 0; line-height: 1.35; }
+.seis__actions { display: flex; justify-content: center; }
+
+/* Same short-landscape-phone budget noted on the Sky Pointer and Double
+   Pendulum (real 568×320 device, ~264px of stage height once the masthead
+   and padding are subtracted). Unlike those two, the caveat here is never
+   hidden — the equivalence-principle line is load-bearing, not optional —
+   so it and the readouts both compete with the strip for the same budget;
+   compact both as far as legibility allows rather than letting the strip,
+   the point of the instrument, be squeezed to nothing. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .seis { gap: 0.25rem; }
+  .seis__readouts { gap: 0.5rem; }
+  .seis__stat { gap: 0.1rem; }
+  .seis__stat .readout { font-size: min(1.125rem, 4.5vw); }
+  .seis__scale { font-size: 0.625rem; top: 0.3rem; right: 0.5rem; }
+  .seis__caveat { max-width: none; font-size: 0.625rem; }
+}

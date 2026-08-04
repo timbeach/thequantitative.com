@@ -67,6 +67,14 @@ export const REGISTRY = [
     needs: [],
     load: () => import('../instruments/pendulum.js'),
   },
+  {
+    id: 'seismo',
+    name: 'Seismograph',
+    category: 'world',
+    blurb: 'Put it on a table. Watch the room.',
+    needs: ['motion'],
+    load: () => import('../instruments/seismo.js'),
+  },
 ]
 
 /**
