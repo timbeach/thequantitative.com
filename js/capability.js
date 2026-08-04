@@ -12,6 +12,13 @@
  * @property {boolean} hasDeviceMotionEvent
  * @property {boolean} hasMotionPermissionApi  DeviceMotionEvent.requestPermission exists (iOS 13+)
  * @property {boolean} hasGetUserMedia
+ * @property {boolean} hasCamera  Video half of getUserMedia. Tested separately from hasGetUserMedia
+ *   even though both currently read navigator.mediaDevices.getUserMedia's presence — camera and
+ *   microphone are different physical devices with different failure modes (a desktop can lack a
+ *   webcam and still have a mic, or vice versa on some embedded hardware), and the Permissions API
+ *   already names them separately ('camera' vs 'microphone' query descriptors). Keeping one flag
+ *   per capability keeps CapabilityEnv self-documenting and lets tests vary them independently
+ *   without that meaning something different than it looks like it means.
  * @property {boolean} hasWakeLock
  * @property {boolean} hasGeolocation
  * @property {number} maxTouchPoints  navigator.maxTouchPoints; >1 means a touchscreen
@@ -29,6 +36,7 @@ export function readEnv() {
     hasDeviceMotionEvent: typeof DME !== 'undefined',
     hasMotionPermissionApi: typeof DME?.requestPermission === 'function',
     hasGetUserMedia: typeof globalThis.navigator?.mediaDevices?.getUserMedia === 'function',
+    hasCamera: typeof globalThis.navigator?.mediaDevices?.getUserMedia === 'function',
     hasWakeLock: /** @type {any} */ (globalThis.navigator)?.wakeLock != null,
     hasGeolocation: globalThis.navigator?.geolocation != null,
     maxTouchPoints: Number(globalThis.navigator?.maxTouchPoints) || 0,
@@ -56,6 +64,11 @@ export function detectCapabilities(env) {
 
     // Like getUserMedia, geolocation always prompts — there is no 'available'.
     geolocation: !env.isSecureContext || !env.hasGeolocation
+      ? 'unavailable'
+      : 'needs-permission',
+
+    // Same shape as microphone: getUserMedia({video}) always prompts.
+    camera: !env.isSecureContext || !env.hasCamera
       ? 'unavailable'
       : 'needs-permission',
   }
@@ -94,5 +107,6 @@ export function unavailableReason(key, env) {
   if (key === 'motion') return 'needs a motion sensor · not present on this device'
   if (key === 'microphone') return 'needs a microphone · not available in this browser'
   if (key === 'geolocation') return 'needs location · not available in this browser'
+  if (key === 'camera') return 'needs a camera · not available in this browser'
   return 'not available on this device'
 }

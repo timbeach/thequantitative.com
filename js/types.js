@@ -2,7 +2,7 @@
 // Typedefs only. This module has no runtime code and is never imported for value.
 
 /** @typedef {'world'|'ideas'} Category */
-/** @typedef {'motion'|'microphone'|'wakelock'|'geolocation'} CapabilityKey */
+/** @typedef {'motion'|'microphone'|'wakelock'|'geolocation'|'camera'} CapabilityKey */
 /** @typedef {'available'|'needs-permission'|'unavailable'} CapabilityState */
 /** @typedef {'idle'|'prompting'|'granted'|'denied'|'unavailable'} ArmState */
 /** @typedef {() => void} Teardown */
@@ -37,6 +37,21 @@
  * @property {() => Promise<MediaStreamAudioSourceNode>} mic Stream stopped on unmount
  * @property {() => Promise<{ latitude:number, longitude:number, accuracyM:number }>} location One fix per mount, memoised
  * @property {(fn:(reading:OrientationReading) => void) => void} orientation Full device orientation each frame
+ * @property {(opts?:CameraOpts) => Promise<CameraHandle>} camera Stream stopped and element detached on unmount, memoised
+ */
+
+/**
+ * @typedef {Object} CameraOpts
+ * @property {'user'|'environment'} [facingMode] Defaults to 'environment' — the back camera, against which a fingertip is pressed
+ * @property {number} [width]  Ideal capture width in pixels; defaults to 320 — this is averaged, not viewed, so small is better
+ * @property {number} [height] Ideal capture height in pixels; defaults to 240
+ */
+
+/**
+ * @typedef {Object} CameraHandle
+ * @property {HTMLVideoElement} video Already playing; safe to draw from immediately
+ * @property {MediaStreamTrack} track The underlying video track, for reading `getSettings()` etc.
+ * @property {(on:boolean) => Promise<boolean>} setTorch Resolves whether the torch actually engaged — false (never throws) when unsupported, as on iOS Safari
  */
 
 /**

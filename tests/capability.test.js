@@ -16,6 +16,7 @@ const env = (over = {}) => ({
   hasDeviceMotionEvent: true,
   hasMotionPermissionApi: false,
   hasGetUserMedia: true,
+  hasCamera: true,
   hasWakeLock: true,
   hasGeolocation: true,
   maxTouchPoints: 0,
@@ -62,6 +63,18 @@ test('insecure context disables geolocation too', () => {
   assert.equal(detectCapabilities(env({ isSecureContext: false })).geolocation, 'unavailable')
 })
 
+test('camera always needs permission when getUserMedia exists', () => {
+  assert.equal(detectCapabilities(env()).camera, 'needs-permission')
+})
+
+test('camera unavailable without getUserMedia', () => {
+  assert.equal(detectCapabilities(env({ hasCamera: false })).camera, 'unavailable')
+})
+
+test('insecure context disables camera too', () => {
+  assert.equal(detectCapabilities(env({ isSecureContext: false })).camera, 'unavailable')
+})
+
 test('wake lock degrades silently rather than blocking', () => {
   assert.equal(detectCapabilities(env({ hasWakeLock: false })).wakelock, 'unavailable')
 })
@@ -86,6 +99,11 @@ test('unavailable reason names the real cause, not a generic error', () => {
 test('unavailable reason names geolocation as the cause', () => {
   const noGeo = unavailableReason('geolocation', env({ hasGeolocation: false }))
   assert.match(noGeo, /location/i)
+})
+
+test('unavailable reason names camera as the cause', () => {
+  const noCamera = unavailableReason('camera', env({ hasCamera: false }))
+  assert.match(noCamera, /camera/i)
 })
 
 test('unavailable reason is empty when the capability is fine', () => {

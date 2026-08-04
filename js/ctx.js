@@ -5,6 +5,8 @@ import { readEnv, isIos, detectCapabilities } from './capability.js'
 /** @typedef {import('./types.js').Ctx} Ctx */
 /** @typedef {import('./types.js').Vec3} Vec3 */
 /** @typedef {import('./types.js').Store} Store */
+/** @typedef {import('./types.js').CameraOpts} CameraOpts */
+/** @typedef {import('./types.js').CameraHandle} CameraHandle */
 
 /**
  * DeviceMotionEvent.accelerationIncludingGravity is reported with opposite sign
@@ -90,6 +92,8 @@ export function createCtx(win, namespace) {
   let micPromise = null
   /** @type {Promise<{ latitude:number, longitude:number, accuracyM:number }> | null} */
   let locationPromise = null
+  /** @type {Promise<CameraHandle> | null} */
+  let cameraPromise = null
 
   const acquire = () => {
     const wl = /** @type {any} */ (win.navigator).wakeLock
@@ -234,6 +238,58 @@ export function createCtx(win, namespace) {
         )
       })
       return locationPromise
+    },
+
+    camera(opts) {
+      if (cameraPromise) return cameraPromise
+
+      cameraPromise = win.navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: opts?.facingMode ?? 'environment',
+          // Small on purpose: the instrument averages the whole frame rather
+          // than looking at it, so extra pixels are pure battery cost.
+          width: { ideal: opts?.width ?? 320 },
+          height: { ideal: opts?.height ?? 240 },
+        },
+      }).then((stream) => {
+        const video = /** @type {HTMLVideoElement} */ (win.document.createElement('video'))
+        // Both required for autoplay on iOS: without playsInline Safari forces
+        // fullscreen playback, and without muted it refuses to autoplay at all.
+        video.playsInline = true
+        video.muted = true
+        video.srcObject = stream
+
+        const track = stream.getVideoTracks()[0]
+        if (!track) throw new Error('camera: no video track in stream')
+
+        scope.add(() => {
+          // Stop every track AND clear srcObject — on some platforms a
+          // stopped track still referenced by a live element keeps the
+          // camera indicator lit.
+          stream.getTracks().forEach((t) => t.stop())
+          video.srcObject = null
+        })
+
+        return video.play().then(() => ({
+          video,
+          track,
+          /** @param {boolean} on */
+          setTorch(on) {
+            // Torch is Chromium-only — iOS Safari exposes no torch control at
+            // all. applyConstraints rejects there, and this must degrade to
+            // false rather than throw so the instrument can tell the user it
+            // needs ambient light instead of appearing broken.
+            // 'torch' is a real, widely-supported constraint (Chromium) that
+            // TS's DOM lib does not model — hence the cast, not a workaround
+            // for a mistake.
+            return track.applyConstraints(/** @type {any} */ ({ advanced: [{ torch: on }] }))
+              .then(() => true)
+              .catch(() => false)
+          },
+        }))
+      })
+
+      return cameraPromise
     },
 
     orientation(fn) {

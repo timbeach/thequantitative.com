@@ -25,6 +25,11 @@ const COPY = {
     why: 'Which stars are above you depends entirely on where you are standing. Your position is used to compute the sky and is never sent anywhere — this site has no server.',
     action: 'Use my location',
   },
+  camera: {
+    title: 'Camera access',
+    why: 'This instrument reads your pulse from the camera image — cover the lens with a fingertip. Frames are analysed locally and never recorded or transmitted.',
+    action: 'Enable camera',
+  },
 }
 
 /**
@@ -130,6 +135,14 @@ async function grant(key) {
     await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 15000, enableHighAccuracy: false })
     })
+    return true
+  }
+  if (key === 'camera') {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+    // Release immediately — ctx.camera() opens its own stream with the actual
+    // constraints an instrument needs. This call exists purely to trigger the
+    // prompt.
+    stream.getTracks().forEach((t) => t.stop())
     return true
   }
   return true
