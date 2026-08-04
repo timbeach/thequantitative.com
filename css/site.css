@@ -111,7 +111,13 @@ body[data-route='instrument'] .sheet { display: none; }
 }
 .card__name { display: block; margin-bottom: 0.35rem; font-size: 0.9375rem; }
 .card__blurb { display: block; font-size: 0.75rem; line-height: 1.4; color: var(--ink-label); }
-.card__reason { display: block; margin-top: 0.5rem; font-size: 0.6875rem; color: var(--ink-dim); }
+/* All four margins, not just margin-top. This class is applied to <p> elements
+   in four instruments and two sheets, and setting only the top longhand leaves
+   the UA stylesheet's default bottom margin in place — roughly 18px of dead
+   space that squeezed the Seismograph's trace to 12px in landscape before it
+   was caught. Fixing it here rather than per-instrument removes the class of
+   bug rather than one instance of it. */
+.card__reason { display: block; margin: 0.5rem 0 0; font-size: 0.6875rem; color: var(--ink-dim); }
 .card[aria-disabled='true'] { color: var(--ink-dim); }
 .card[aria-disabled='true'] .card__name,
 .card[aria-disabled='true'] .card__blurb { color: var(--ink-dim); }
