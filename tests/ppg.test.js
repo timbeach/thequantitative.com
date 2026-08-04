@@ -1,7 +1,7 @@
 // @ts-check
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { highPass2, estimateRate, MIN_BPM, MAX_BPM } from '../dsp/ppg.js'
+import { highPass2, estimateRate, resampleCubic, MIN_BPM, MAX_BPM } from '../dsp/ppg.js'
 
 const SR = 30           // fps — a phone camera's typical capture rate
 const DURATION = 15      // seconds, matching the verified table
@@ -169,4 +169,131 @@ test('clarity falls as noise rises', () => {
 test('exposes MIN_BPM and MAX_BPM as the documented physiological range', () => {
   assert.equal(MIN_BPM, 40)
   assert.equal(MAX_BPM, 200)
+})
+
+// ---------------------------------------------------------------------------
+// The sweep.
+//
+// Five hand-picked rates (45/60/72/140/180) passed while eight rates between
+// them reported exactly half or a third of the truth, every one of them at
+// clarity 1.000. Spot checks cannot find that class of bug: whether a rate
+// works depends on where its period falls relative to the sample grid, which
+// is not a property any human would think to sample. So the range is swept
+// whole, at every frame rate a phone camera plausibly delivers.
+// ---------------------------------------------------------------------------
+
+/**
+ * PPG as a camera actually captures it: the sensor integrates light over the
+ * exposure, so a frame is the MEAN of the signal across the frame interval,
+ * not a point sample of it. That distinction matters at the top of the range —
+ * point-sampling a sharp systolic peak at 20 fps aliases it, and the aliasing
+ * masquerades as an algorithm failure.
+ *
+ * @param {number} bpm
+ * @param {{ sampleRate?: number, duration?: number, driftPerSec?: number,
+ *   breathingAmplitude?: number, noiseAmplitude?: number, seed?: number }} [opts]
+ */
+function capturedPPG(bpm, opts = {}) {
+  const sampleRate = opts.sampleRate ?? SR
+  const duration = opts.duration ?? DURATION
+  const driftPerSec = opts.driftPerSec ?? 0
+  const breathingAmplitude = opts.breathingAmplitude ?? 0
+  const noiseAmplitude = opts.noiseAmplitude ?? 0
+  const rnd = seededNoise(opts.seed ?? 1)
+
+  const SUBSAMPLES = 32          // per frame, integrated to model the exposure
+  const n = Math.round(sampleRate * duration)
+  const x = new Float64Array(n)
+  const hz = bpm / 60
+  for (let i = 0; i < n; i++) {
+    let acc = 0
+    for (let j = 0; j < SUBSAMPLES; j++) {
+      const t = (i + j / SUBSAMPLES) / sampleRate
+      const phase = (t * hz) % 1
+      acc += Math.exp(-((phase - 0.15) ** 2) / 0.004) +
+        0.35 * Math.exp(-((phase - 0.35) ** 2) / 0.006) +
+        breathingAmplitude * Math.sin(2 * Math.PI * 0.25 * t)
+    }
+    x[i] = acc / SUBSAMPLES + driftPerSec * (i / sampleRate) + noiseAmplitude * rnd()
+  }
+  return x
+}
+
+/** @type {number[]} */
+const SWEEP_RATES = []
+for (let bpm = 40; bpm <= 200; bpm += 5) SWEEP_RATES.push(bpm)
+
+const SWEEP_CONDITIONS = [
+  { label: 'clean 15 fps', sampleRate: 15 },
+  { label: 'clean 20 fps', sampleRate: 20 },
+  { label: 'clean 30 fps', sampleRate: 30 },
+  { label: 'clean 60 fps', sampleRate: 60 },
+  { label: 'noisy 20 fps', sampleRate: 20, noiseAmplitude: 0.15, breathingAmplitude: 0.5, driftPerSec: 0.05 },
+  { label: 'noisy 30 fps', sampleRate: 30, noiseAmplitude: 0.15, breathingAmplitude: 0.5, driftPerSec: 0.05 },
+]
+
+test('NO HARMONIC ERRORS ANYWHERE IN 40-200 BPM, AT ANY FRAME RATE', () => {
+  // The honesty property, and the one that actually failed: a refusal is
+  // acceptable at any rate, but a confident number must never be a multiple
+  // or a fraction of the truth. Half of 170 is a plausible-looking 85.
+  for (const c of SWEEP_CONDITIONS) {
+    for (const bpm of SWEEP_RATES) {
+      const r = estimateRate(capturedPPG(bpm, c), c.sampleRate)
+      if (!r) continue                       // refusing is always allowed
+      const ratio = r.bpm / bpm
+      assert.ok(
+        Math.abs(ratio - 1) < 0.05,
+        `${c.label} ${bpm} BPM -> ${r.bpm.toFixed(1)} (x${ratio.toFixed(3)}) ` +
+        `at clarity ${r.clarity.toFixed(3)}`,
+      )
+    }
+  }
+})
+
+test('and it does not simply refuse everything to pass that test', () => {
+  // The complement of the honesty test. Without this, returning null
+  // unconditionally would satisfy the sweep above.
+  for (const c of SWEEP_CONDITIONS) {
+    let read = 0
+    for (const bpm of SWEEP_RATES) if (estimateRate(capturedPPG(bpm, c), c.sampleRate)) read++
+    assert.ok(
+      read >= SWEEP_RATES.length - 2,
+      `${c.label}: only ${read}/${SWEEP_RATES.length} rates produced a reading`,
+    )
+  }
+})
+
+test('the sweep is accurate, not merely non-harmonic, at 30 fps', () => {
+  for (const bpm of SWEEP_RATES) {
+    const r = estimateRate(capturedPPG(bpm, { sampleRate: 30 }), 30)
+    if (!r) {
+      assert.ok(bpm >= 195, `30 fps refused a mid-range ${bpm} BPM`)
+      continue
+    }
+    assert.ok(Math.abs(r.bpm - bpm) < 3, `30 fps ${bpm} BPM -> ${r.bpm.toFixed(1)}`)
+  }
+})
+
+test('resampleCubic preserves the original samples at the factor boundaries', () => {
+  const x = [0, 1, 4, 9, 16, 25, 36]
+  const up = resampleCubic(x, 4)
+  assert.equal(up.length, (x.length - 1) * 4 + 1)
+  for (let i = 0; i < x.length; i++) {
+    assert.ok(Math.abs((up[i * 4] ?? 0) - (x[i] ?? 0)) < 1e-12, `sample ${i} moved`)
+  }
+})
+
+test('resampleCubic does not flatten a peak the way linear interpolation would', () => {
+  // A peak sitting between two samples is the thing this whole fix is about.
+  const x = [0, 0, 1, 1, 0, 0]
+  const up = resampleCubic(x, 4)
+  let mx = 0
+  for (const v of up) mx = Math.max(mx, v)
+  assert.ok(mx > 1, `cubic should overshoot slightly through a plateau edge, got ${mx}`)
+})
+
+test('resampleCubic with factor 1 or a degenerate input is a copy, not a crash', () => {
+  assert.deepEqual(Array.from(resampleCubic([1, 2, 3], 1)), [1, 2, 3])
+  assert.equal(resampleCubic([], 4).length, 0)
+  assert.deepEqual(Array.from(resampleCubic([7], 4)), [7])
 })

@@ -71,6 +71,64 @@ export function highPass2(samples, sampleRate, cornerHz) {
 }
 
 /**
+ * The effective sample rate the period finder works at, in Hz.
+ *
+ * A camera samples at 15-60 fps, and at those rates a heart rate's period is
+ * only a handful of samples long — 170 BPM at 30 fps is 10.59 of them. The
+ * NSDF is only evaluated at whole-sample lags, so a period that lands between
+ * samples is measured out of phase with itself and its correlation is
+ * depressed, while twice that period may happen to land much closer to a whole
+ * sample and score higher. `detectPitch` then picks the first lag reaching its
+ * threshold, skips the true period entirely, and reports half the heart rate
+ * with a clarity of 1.000 — confidently, which is the worst way to be wrong.
+ *
+ * Resampling to at least this rate first makes the lag grid fine enough that
+ * the true period is never the one that misses. 120 Hz was measured, not
+ * assumed: see the sweep test in `tests/ppg.test.js`.
+ */
+const WORKING_RATE = 120
+
+/**
+ * Catmull-Rom cubic interpolation, upsampling by a whole-number factor.
+ *
+ * Cubic rather than linear because linear interpolation flattens peaks, and a
+ * flattened peak is exactly the thing being measured here.
+ *
+ * @param {ArrayLike<number>} samples
+ * @param {number} factor whole number ≥ 1; 1 returns a copy
+ * @returns {Float64Array} length `(n - 1) * factor + 1`
+ */
+export function resampleCubic(samples, factor) {
+  const n = samples.length
+  if (n === 0) return new Float64Array(0)
+  if (factor <= 1 || n === 1) return Float64Array.from(samples)
+
+  const out = new Float64Array((n - 1) * factor + 1)
+  /** @param {number} i */
+  const at = (i) => samples[Math.min(n - 1, Math.max(0, i))] ?? 0
+
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = at(i - 1)
+    const p1 = at(i)
+    const p2 = at(i + 1)
+    const p3 = at(i + 2)
+    for (let j = 0; j < factor; j++) {
+      const t = j / factor
+      const t2 = t * t
+      const t3 = t2 * t
+      out[i * factor + j] =
+        0.5 *
+        (2 * p1 +
+          (-p0 + p2) * t +
+          (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+          (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+    }
+  }
+  out[(n - 1) * factor] = at(n - 1)
+  return out
+}
+
+/**
  * @typedef {Object} EstimateRateOptions
  * @property {number} [cornerHz] high-pass corner in Hz. Default 0.7 — found
  *   empirically: below it, breathing (~0.2-0.35 Hz) wins the clarity contest;
@@ -106,7 +164,15 @@ export function estimateRate(samples, sampleRate, opts = {}) {
   const minClarity = opts.minClarity ?? 0.5
 
   const filtered = highPass2(samples, sampleRate, cornerHz)
-  const r = detectPitch(filtered, sampleRate, { minClarity })
+
+  const factor = Math.max(1, Math.ceil(WORKING_RATE / sampleRate))
+  const dense = resampleCubic(filtered, factor)
+
+  // 0.8 rather than the Tuner's 0.9. A PPG waveform's second harmonic is
+  // strong — the dicrotic notch is literally a second bump per beat — so the
+  // key maximum at the true period sits lower relative to the tallest than a
+  // plucked string's does. Measured across the full 40-200 BPM sweep.
+  const r = detectPitch(dense, sampleRate * factor, { threshold: 0.8, minClarity })
   if (!r) return null
 
   const bpm = r.hz * 60
