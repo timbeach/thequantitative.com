@@ -5,6 +5,7 @@ import {
   sweepSamples,
   smoothFractionalOctave,
   findModes,
+  residualCurve,
   DEFAULT_BAND,
   MIN_PROMINENCE_DB,
   MIN_SWEEP_SECONDS,
@@ -334,5 +335,49 @@ test('findModes is not fooled by badly ordered input', () => {
     const got = findModes(/** @type {{hz: number, db: number}[]} */ (input))
       .map((m) => Math.round(m.hz)).sort((a, b) => a - b)
     assert.deepEqual(got, expected, `${label} input produced a different answer`)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// residualCurve
+// ---------------------------------------------------------------------------
+
+test('residualCurve is band-limited, ascending, and empty when the band is thin', () => {
+  const hzList = logSpacedHz(80, 3500, 900)
+  const points = hzList.map((hz) => ({ hz, db: lorentzianDb(900, 30, 12)(hz) }))
+
+  const curve = residualCurve([...points].reverse())
+  assert.ok(curve.length > 0)
+  for (const p of curve) {
+    assert.ok(p.hz >= DEFAULT_BAND.lo && p.hz <= DEFAULT_BAND.hi, `${p.hz} escaped the band`)
+  }
+  for (let i = 1; i < curve.length; i++) {
+    assert.ok((curve[i]?.hz ?? 0) >= (curve[i - 1]?.hz ?? 0), 'must be ascending by hz')
+  }
+
+  assert.deepEqual(residualCurve([{ hz: 400, db: 0 }, { hz: 500, db: 0 }]), [])
+})
+
+test('every mode findModes reports sits on a peak of residualCurve', () => {
+  // The instrument draws residualCurve and labels findModes' output on top of
+  // it. If the two ever disagreed, a label could sit where the drawn curve has
+  // no peak — a confident mark with nothing under it, which is the one output
+  // this instrument must never produce.
+  const hzList = logSpacedHz(280, 2100, 900)
+  const points = hzList.map((hz) => ({
+    hz,
+    db: lorentzianDb(500, 30, 10)(hz) + lorentzianDb(900, 30, 14)(hz) + lorentzianDb(1500, 30, 18)(hz),
+  }))
+
+  const curve = residualCurve(points)
+  const found = findModes(points)
+  assert.ok(found.length >= 3)
+
+  for (const mode of found) {
+    const i = curve.findIndex((p) => p.hz === mode.hz)
+    assert.ok(i > 0 && i < curve.length - 1, `${mode.hz} Hz is not an interior point of the curve`)
+    assert.equal(curve[i]?.residualDb, mode.prominenceDb, 'prominence must be the curve value')
+    assert.ok((curve[i]?.residualDb ?? 0) > (curve[i - 1]?.residualDb ?? 0), 'must exceed its left neighbour')
+    assert.ok((curve[i]?.residualDb ?? 0) > (curve[i + 1]?.residualDb ?? 0), 'must exceed its right neighbour')
   }
 })

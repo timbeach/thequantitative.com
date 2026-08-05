@@ -576,3 +576,84 @@ body[data-route='instrument'] .sheet { display: none; }
   .pulse__gauge-label { font-size: 0.625rem; }
   .pulse__hint, .pulse__instructions, .pulse__torch-note { max-width: none; font-size: 0.625rem; }
 }
+
+/* ── Room Resonance ───────────────────────────────────────────────────── */
+.room { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; flex: 1; width: 100%; }
+.room__main { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; width: 100%; overflow: hidden; }
+/* One value, but four digits plus a unit: the sweep can put "4000 Hz" here,
+   which is wider than .readout's 18vw single-short-value assumption allows.
+   Same trap noted throughout this file, starting at the Spirit Level. */
+.room__main .readout { font-size: min(3.5rem, 16vw); white-space: nowrap; line-height: 1; }
+.room__sub { text-align: center; }
+/* `flex: 1 1 0px` and `min-height: 0` are both required, neither is
+   sufficient — see the full mechanism on .tuner__spec. .room__view is the
+   positioning root for the axis caption, drawn as DOM text over the canvas
+   exactly like .seis__scale so it stays crisp and never fights the canvas's
+   own devicePixelRatio math. */
+.room__view { position: relative; display: flex; width: 100%; flex: 1 1 0px; min-height: 0; }
+.room__canvas { width: 100%; flex: 1 1 0px; min-height: 0; background: var(--void); }
+.room__axis { position: absolute; top: 0.4rem; right: 0.6rem; color: var(--ink-dim); }
+.room__modes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.3rem 1rem;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+.room__mode { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; min-width: 0; }
+/* Up to four cells share the width. Worst case is "2000 Hz" — the band's own
+   ceiling, four digits plus the unit. */
+.room__mode .readout { font-size: min(1.5rem, 6.5vw); white-space: nowrap; }
+.room__note { text-align: center; max-width: 26rem; margin: 0; line-height: 1.35; }
+.room__invites {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.room__invite { font-size: 0.6875rem; color: var(--ink-dim); line-height: 1.35; }
+.room__warn { text-align: center; max-width: 26rem; margin: 0; line-height: 1.35; }
+/* Both of these carry text while hidden, and both set `display` in an author
+   rule — `.card__reason { display: block }` for the warning, the flex column
+   above for the invitations. An author `display` beats the UA stylesheet's
+   `[hidden] { display: none }` regardless of source order, so without these
+   two rules the `hidden` attribute does nothing at all and the loudness
+   warning would sit under the button forever. */
+.room__warn[hidden], .room__invites[hidden] { display: none; }
+.room__actions { display: flex; justify-content: center; }
+
+/* Same short-landscape-phone budget noted throughout this file (real 568×320
+   device, ~264px of stage height once the masthead and padding are
+   subtracted). This instrument's text rows are all load-bearing and none is
+   hidden here: the loudness warning has to be read before the sweep, and the
+   two invitations after a run are the experiments that let a user falsify
+   the result. Compacting is the only lever, so the residual plot keeps
+   whatever is left. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .room { gap: 0.15rem; }
+  /* The headline block turns into one baseline-aligned row here. Stacked, it
+     costs 53px of a 272px stage and the residual plot is what pays; in a row
+     it costs 26px and reads just as well. Measured on a real 568×320 stage:
+     stacking left the plot 12px tall with four modes listed. */
+  .room__main { flex-direction: row; align-items: baseline; justify-content: center; gap: 0.5rem; }
+  .room__main .readout { font-size: min(1.5rem, 5vw); }
+  .room__sub { font-size: 0.625rem; }
+  .room__modes { grid-template-columns: repeat(4, 1fr); gap: 0.1rem 0.5rem; max-width: none; }
+  .room__mode { gap: 0; }
+  .room__mode .readout { font-size: min(1.125rem, 4vw); }
+  .room__note, .room__warn { max-width: none; font-size: 0.625rem; }
+  /* Side by side rather than stacked: at this width each invitation wraps to
+     three short lines instead of two long ones, and three lines beside three
+     lines is shorter than two above two. */
+  .room__invites { max-width: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.1rem 0.75rem; }
+  .room__invite { font-size: 0.625rem; }
+  .room__axis { font-size: 0.625rem; top: 0.25rem; right: 0.4rem; }
+}

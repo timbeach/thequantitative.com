@@ -146,6 +146,13 @@ export function smoothFractionalOctave(points, fraction) {
  *   default `DEFAULT_BAND`
  */
 
+/**
+ * @typedef {Object} ResidualPoint
+ * @property {number} hz
+ * @property {number} residualDb measured level minus the smoothed estimate of
+ *   the broad (transducer) response at the same frequency
+ */
+
 /** Two peaks closer together than this, as a fraction of frequency, are
  * treated as one mode smeared across adjacent analysis points rather than
  * two distinct modes. */
@@ -160,20 +167,21 @@ const MERGE_FRACTION = 0.04
 const SMOOTHING_FRACTION = 3
 
 /**
- * Find room modes in a measured frequency response.
+ * The detrended response: band limit, estimate the broad part by smoothing,
+ * and subtract. Everything left is narrow enough to be the room rather than
+ * the hardware, and it is the only curve worth showing a user or peak-picking
+ * for modes.
  *
- * The whole chain follows from the shape argument in the module doc: band
- * limit first (so the speaker's sub-300 Hz rolloff never enters the
- * envelope estimate), smooth what's left to estimate the broad transducer
- * response, subtract to get the residual, and peak-pick the residual against
- * `MIN_PROMINENCE_DB`. An empty result is the correct, common answer — most
- * rooms most of the time have nothing to report.
+ * Exported because the instrument draws this curve while `findModes` labels
+ * peaks on it. Deriving both from one function is what guarantees a label can
+ * never sit somewhere the drawn curve has no peak.
  *
  * @param {SpectrumPoint[]} points in any order — sorted here, see below
  * @param {FindModesOptions} [opts]
- * @returns {{ hz: number, prominenceDb: number }[]} sorted by descending prominence
+ * @returns {ResidualPoint[]} ascending by hz; empty when the band holds fewer
+ *   than three points
  */
-export function findModes(points, opts = {}) {
+export function residualCurve(points, opts = {}) {
   const band = opts.band ?? DEFAULT_BAND
 
   // Sorted here rather than demanded of the caller. Both later stages assume
@@ -192,9 +200,25 @@ export function findModes(points, opts = {}) {
   if (banded.length < 3) return []
 
   const smoothed = smoothFractionalOctave(banded, SMOOTHING_FRACTION)
+  return banded.map((p, i) => ({ hz: p.hz, residualDb: p.db - (smoothed[i]?.db ?? p.db) }))
+}
 
-  /** @type {{ hz: number, residualDb: number }[]} */
-  const residual = banded.map((p, i) => ({ hz: p.hz, residualDb: p.db - (smoothed[i]?.db ?? p.db) }))
+/**
+ * Find room modes in a measured frequency response.
+ *
+ * The whole chain follows from the shape argument in the module doc: band
+ * limit first (so the speaker's sub-300 Hz rolloff never enters the
+ * envelope estimate), smooth what's left to estimate the broad transducer
+ * response, subtract to get the residual, and peak-pick the residual against
+ * `MIN_PROMINENCE_DB`. An empty result is the correct, common answer — most
+ * rooms most of the time have nothing to report.
+ *
+ * @param {SpectrumPoint[]} points in any order — sorted by `residualCurve`
+ * @param {FindModesOptions} [opts]
+ * @returns {{ hz: number, prominenceDb: number }[]} sorted by descending prominence
+ */
+export function findModes(points, opts = {}) {
+  const residual = residualCurve(points, opts)
 
   /** @type {{ hz: number, prominenceDb: number }[]} */
   const peaks = []

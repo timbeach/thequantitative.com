@@ -83,6 +83,14 @@ export const REGISTRY = [
     needs: ['camera'],
     load: () => import('../instruments/pulse.js'),
   },
+  {
+    id: 'room',
+    name: 'Room Resonance',
+    category: 'world',
+    blurb: 'Find the notes your room rings at.',
+    needs: ['microphone'],
+    load: () => import('../instruments/room.js'),
+  },
 ]
 
 /**
