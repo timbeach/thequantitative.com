@@ -35,6 +35,9 @@
  * @property {() => void} wakeLock                            Best-effort; no-op where unsupported
  * @property {() => AudioContext} audio                     Shared, closed on unmount
  * @property {() => Promise<MediaStreamAudioSourceNode>} mic Stream stopped on unmount
+ * @property {(samples:Float32Array, sampleRate?:number) => { done: Promise<void>, stop: () => void }} playSamples
+ * Plays a mono buffer straight to destination — no gain node, no compressor. `done` resolves, never rejects, on
+ * natural end, `stop()`, or scope teardown, whichever comes first. `stop()` is idempotent.
  * @property {() => Promise<{ latitude:number, longitude:number, accuracyM:number }>} location One fix per mount, memoised
  * @property {(fn:(reading:OrientationReading) => void) => void} orientation Full device orientation each frame
  * @property {(opts?:CameraOpts) => Promise<CameraHandle>} camera Stream stopped and element detached on unmount, memoised

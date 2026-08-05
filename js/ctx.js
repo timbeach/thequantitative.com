@@ -220,6 +220,71 @@ export function createCtx(win, namespace) {
       return micPromise
     },
 
+    /**
+     * Play a mono buffer through the shared AudioContext. This is the only
+     * way an instrument makes sound — see the design note at the connect()
+     * call below for why nothing sits between the source and destination.
+     * @param {Float32Array} samples
+     * @param {number} [sampleRate] Defaults to the context's own sampleRate;
+     * passing a different rate sets it on the buffer and lets the browser
+     * resample.
+     * @returns {{ done: Promise<void>, stop: () => void }} done resolves —
+     * never rejects — when playback ends naturally, stop() is called, or the
+     * scope tears down, whichever happens first.
+     */
+    playSamples(samples, sampleRate) {
+      const audio = this.audio()
+
+      /** @type {() => void} */
+      let resolveDone = () => {}
+      /** @type {Promise<void>} */
+      const done = new Promise((resolve) => { resolveDone = () => resolve() })
+
+      /** @type {AudioBufferSourceNode | null} */
+      let source = null
+      let settled = false
+
+      // Shared by the node's 'ended' event, stop(), and scope teardown —
+      // whichever fires first wins and the other two become no-ops. stop()
+      // and disconnect() are safe to call even on a node that never started
+      // or has already finished playing, so this never throws.
+      const finish = () => {
+        if (settled) return
+        settled = true
+        try { source?.stop() } catch { /* already stopped */ }
+        try { source?.disconnect() } catch { /* already disconnected */ }
+        resolveDone()
+      }
+
+      scope.add(finish)
+
+      // An AudioContext starts suspended until a user gesture; the arm screen
+      // guarantees one has happened before mount(), exactly as in mic() above.
+      audio.resume().catch(() => {}).then(() => {
+        if (settled) return // stopped, or scope disposed, before resume finished
+        try {
+          const rate = sampleRate ?? audio.sampleRate
+          const buffer = audio.createBuffer(1, samples.length, rate)
+          buffer.getChannelData(0).set(samples)
+          const node = audio.createBufferSource()
+          node.buffer = buffer
+          // Straight to destination — no gain node, no compressor. This
+          // instrument measures a room's frequency response through this
+          // exact path, so anything that alters level with frequency is a
+          // measurement error, and a compressor would fight the very thing
+          // being measured.
+          node.connect(audio.destination)
+          node.addEventListener('ended', finish)
+          source = node
+          node.start()
+        } catch {
+          finish() // never reject — a playback failure is silence, not a crash
+        }
+      })
+
+      return { done, stop: finish }
+    },
+
     location() {
       if (locationPromise) return locationPromise
       locationPromise = new Promise((resolve, reject) => {
