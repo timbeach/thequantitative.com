@@ -307,3 +307,32 @@ test('exposes the documented constants', () => {
   assert.equal(MIN_PROMINENCE_DB, 7)
   assert.equal(MIN_SWEEP_SECONDS, 8)
 })
+
+test('findModes is not fooled by badly ordered input', () => {
+  // Both the smoothing window and the merge pass assume ascending frequency,
+  // and neither fails loudly when that breaks — a reversed input previously
+  // grew three phantom modes that are not in the signal. Sorting inside
+  // findModes is what makes the caller's ordering irrelevant.
+  const rnd = seededNoise(5)
+  /** @type {{ hz: number, db: number }[]} */
+  const ascending = []
+  const planted = [430, 610, 880]
+  for (let i = 0; i < 900; i++) {
+    const hz = 250 * Math.pow(8000 / 250, i / 899)
+    let db = -12 * Math.log2(hz / 250) + 6 * Math.exp(-((Math.log2(hz / 1250)) ** 2) / 0.25)
+    for (const m of planted) db += 14 / (1 + ((hz - m) / (m / 28)) ** 2)
+    ascending.push({ hz, db: db + 0.35 * rnd() })
+  }
+
+  const expected = findModes(ascending).map((m) => Math.round(m.hz)).sort((a, b) => a - b)
+  assert.equal(expected.length, planted.length, `ascending input should find exactly ${planted.length} modes`)
+
+  for (const [label, input] of [
+    ['reversed', [...ascending].reverse()],
+    ['shuffled', [...ascending].sort((a, b) => (a.hz % 7) - (b.hz % 7))],
+  ]) {
+    const got = findModes(/** @type {{hz: number, db: number}[]} */ (input))
+      .map((m) => Math.round(m.hz)).sort((a, b) => a - b)
+    assert.deepEqual(got, expected, `${label} input produced a different answer`)
+  }
+})

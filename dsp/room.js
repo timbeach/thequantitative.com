@@ -169,13 +169,26 @@ const SMOOTHING_FRACTION = 3
  * `MIN_PROMINENCE_DB`. An empty result is the correct, common answer — most
  * rooms most of the time have nothing to report.
  *
- * @param {SpectrumPoint[]} points sorted ascending by hz
+ * @param {SpectrumPoint[]} points in any order — sorted here, see below
  * @param {FindModesOptions} [opts]
  * @returns {{ hz: number, prominenceDb: number }[]} sorted by descending prominence
  */
 export function findModes(points, opts = {}) {
   const band = opts.band ?? DEFAULT_BAND
-  const banded = points.filter((p) => p.hz >= band.lo && p.hz <= band.hi)
+
+  // Sorted here rather than demanded of the caller. Both later stages assume
+  // ascending frequency — the smoothing window slides two pointers forward,
+  // and the merge pass only compares each peak with the previous one — and
+  // neither fails loudly when that assumption breaks. Given a badly ordered
+  // input the envelope is estimated from the wrong neighbours and the residual
+  // grows peaks that are not in the signal: measured on a three-mode fixture,
+  // a reversed input reported three extra modes at 304, 403 and 463 Hz
+  // alongside the real ones. A confident phantom mode is the one output this
+  // instrument must never produce, so the precondition is enforced where it is
+  // relied upon rather than documented and hoped for.
+  const banded = points
+    .filter((p) => p.hz >= band.lo && p.hz <= band.hi)
+    .sort((a, b) => a.hz - b.hz)
   if (banded.length < 3) return []
 
   const smoothed = smoothFractionalOctave(banded, SMOOTHING_FRACTION)
