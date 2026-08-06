@@ -91,6 +91,14 @@ export const REGISTRY = [
     needs: ['microphone'],
     load: () => import('../instruments/room.js'),
   },
+  {
+    id: 'reaction',
+    name: 'Reaction Time',
+    category: 'ideas',
+    blurb: 'Tap the moment it changes.',
+    needs: [],
+    load: () => import('../instruments/reaction.js'),
+  },
 ]
 
 /**

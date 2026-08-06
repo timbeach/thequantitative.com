@@ -12,6 +12,15 @@
 
   --pad:        max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
   --masthead-h: 3rem;
+  /* The height an instrument actually gets. Subtracts the insets because body
+     already pads by them, so the space available below the masthead is 100dvh
+     minus both. .stage takes this as a min-height; an instrument that needs a
+     *bounded* height (one with a scrolling region) takes it as a max-height,
+     less .stage's own padding. */
+  --stage-h:    calc(
+                  100dvh - var(--masthead-h)
+                  - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+                );
 
   color-scheme: dark;
 }
@@ -126,13 +135,7 @@ body[data-route='instrument'] .sheet { display: none; }
 .stage {
   display: flex;
   flex-direction: column;
-  /* Subtract the insets: body already pads by them, so the space actually
-     available to children is 100dvh minus both. Without this the stage
-     overflows by the inset total on any notched device. */
-  min-height: calc(
-    100dvh - var(--masthead-h)
-    - env(safe-area-inset-top) - env(safe-area-inset-bottom)
-  );
+  min-height: var(--stage-h);
   padding: var(--pad);
 }
 
@@ -656,4 +659,165 @@ body[data-route='instrument'] .sheet { display: none; }
   .room__invites { max-width: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.1rem 0.75rem; }
   .room__invite { font-size: 0.625rem; }
   .room__axis { font-size: 0.625rem; top: 0.25rem; right: 0.4rem; }
+}
+
+/* ── Reaction Time ────────────────────────────────────────────────────── */
+/* Bounded, not just grown into: .stage only ever sets a *min*-height, so a
+   tall child simply makes the page longer and the panel's `overflow-y` below
+   would have nothing to clip. Capping the instrument at exactly the height the
+   stage offers, less the stage's own padding, is what keeps the tap target on
+   screen on a short phone instead of pushing it up out of view. Every other
+   instrument fits without this; this one carries a target that must stay put
+   and prose that must stay readable, and one of the two has to give. */
+.rxn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  max-height: calc(var(--stage-h) - 2 * var(--pad));
+}
+/* `flex: 1 0 auto`, and the zero shrink is the load-bearing part: with .rxn
+   capped, a shrinkable side would collapse below the pad's own min-height and
+   the pad would paint straight over the panel. It takes the surplus when there
+   is one and gives up nothing when there is not. */
+.rxn__side { display: flex; flex-direction: column; gap: 0.35rem; width: 100%; flex: 1 0 auto; }
+/* The whole thing is the target. A small button would measure how fast a
+   thumb finds a button, which is aim, not reaction. It takes every pixel the
+   side leaves over (`flex: 1 1 0px`) and never gives back more than the floor
+   below. */
+.rxn__pad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  flex: 1 1 0px;
+  /* A floor, not a preference. On a short phone the prose below would
+     otherwise squeeze the target down to a strip, and a target you have to
+     look for measures aim rather than reaction. The panel scrolls instead. */
+  min-height: 7rem;
+  padding: 0.75rem;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  /* manipulation, not none: this kills the double-tap-to-zoom hold-off
+     without also killing the page scroll the panel below may need. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* A fast second tap must not start selecting the words inside the pad. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* The go state: a hard change of both hue and luminance across the entire
+   target, not an element appearing somewhere in it. Nothing here moves or
+   resizes, so the frame that paints it is a recolour and nothing else. */
+.rxn__pad[data-phase='go'] { background: var(--signal); border-color: var(--signal); color: var(--void); }
+.rxn__pad[data-phase='waiting'] { background: var(--void); color: var(--ink-dim); }
+.rxn__word { font-size: min(4rem, 17vw); line-height: 1; white-space: nowrap; }
+/* Twelve glyphs rather than the three or seven every other phase shows, so
+   this one state gets its own size. Same worst-case-glyph arithmetic noted
+   throughout this file. */
+.rxn__pad[data-phase='idle'] .rxn__word { font-size: min(1.5rem, 6vw); }
+.rxn__pad[data-phase='shown'] .rxn__word { color: var(--signal); }
+.rxn__hint { font-size: 0.6875rem; line-height: 1.35; color: var(--ink-label); max-width: 24rem; text-align: center; }
+.rxn__dots { display: flex; gap: 0.5rem; }
+.rxn__dots i { width: 0.45rem; height: 0.45rem; border-radius: 50%; border: 1px solid var(--edge); background: transparent; }
+.rxn__dots i.is-lit { background: var(--edge); }
+/* Held in the layout rather than removed, so the pad's contents never shift
+   between states. A jump on the go frame would be extra paint work on the
+   one frame whose timestamp is the measurement. */
+.rxn__pad:not([data-phase='waiting']) .rxn__dots { visibility: hidden; }
+/* Two lines reserved: the verdict text appears and disappears every trial and
+   must not shove the panel below it up and down while the user is tapping. */
+.rxn__verdict { margin: 0; text-align: center; font-size: 0.75rem; line-height: 1.3; min-height: 2.6em; }
+/* The reading half. It gives up height to the tap target first and scrolls
+   within itself once there is nothing left to give, so no line of the latency
+   budget or the comparison caveat is ever dropped to make room. */
+.rxn__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  min-height: 0;
+  flex: 0 1 auto;
+  overflow-y: auto;
+}
+/* Nothing inside the scrolling half may shrink. A flex item with
+   `overflow: hidden` (the stats grid, which needs it for worst-case glyphs)
+   has an automatic minimum size of zero, so on a short phone it was crushed to
+   a strip of clipped labels instead of scrolling out of sight honestly. */
+.rxn__panel > * { flex: 0 0 auto; }
+.rxn__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.2rem 0.5rem;
+  width: 100%;
+  overflow: hidden;
+}
+.rxn__stat { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; min-width: 0; }
+/* Seven glyphs is the longest label here ("FASTEST", "COUNTED"), which fits a
+   quarter of a 320px screen at this size. Wrapping instead made the four cells
+   different heights and pushed one value out of line with the rest. */
+.rxn__stat .label { white-space: nowrap; }
+/* Four cells share the width. Worst case is a four-digit value plus the unit:
+   nothing above 2999 ms is ever recorded, and anything longer than that is
+   discarded before it reaches a readout. */
+.rxn__stat .readout { font-size: min(1.5rem, 6.5vw); white-space: nowrap; }
+.rxn__interval { margin: 0; text-align: center; font-size: 0.75rem; line-height: 1.3; }
+.rxn__plot { width: 100%; height: min(4.5rem, 13vh); flex: 0 0 auto; background: var(--void); }
+/* Every trial, in order, including the ones that counted towards nothing.
+   One row that scrolls sideways rather than a block that wraps: a long run
+   must not be able to push the tap pad off the screen. */
+.rxn__trials {
+  display: flex;
+  gap: 0.25rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.rxn__chip {
+  flex: 0 0 auto;
+  font-size: 0.6875rem;
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--edge);
+  border-radius: 0.25rem;
+  color: var(--ink-label);
+}
+.rxn__chip--valid { color: var(--signal); border-color: var(--signal); }
+.rxn__chip--anticipated,
+.rxn__chip--false-start,
+.rxn__chip--unusable { color: var(--alert); border-color: var(--alert); text-decoration: line-through; }
+.rxn__compare, .rxn__latency { text-align: center; margin: 0; line-height: 1.35; }
+.rxn__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+
+/* Same short-landscape-phone budget noted throughout this file (real 568×320
+   device, ~264px of stage height once the masthead and padding are
+   subtracted). Stacking cannot work here: this instrument's one irreducible
+   requirement is a tap target big enough that finding it costs nothing, and
+   in a column the prose would leave it about 50px tall. So the stage splits
+   in two (target on one side, everything read afterwards on the other) and
+   the reading side scrolls if the phone is short enough. Nothing is clipped
+   and nothing is dropped; the target keeps the full height. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .rxn { flex-direction: row; gap: 0.5rem; align-items: stretch; }
+  .rxn__side { flex: 1 1 44%; width: auto; min-width: 0; }
+  .rxn__pad { min-height: 0; }
+  .rxn__word { font-size: min(3rem, 8vw); }
+  .rxn__pad[data-phase='idle'] .rxn__word { font-size: min(1.25rem, 3.5vw); }
+  .rxn__hint { font-size: 0.625rem; }
+  .rxn__verdict { font-size: 0.625rem; min-height: 3.9em; }
+  .rxn__panel { flex: 1 1 56%; width: auto; min-width: 0; gap: 0.25rem; }
+  .rxn__stat .readout { font-size: min(1.25rem, 3.5vw); }
+  .rxn__interval { font-size: 0.625rem; }
+  .rxn__plot { height: 2.75rem; }
+  .rxn__compare, .rxn__latency { font-size: 0.625rem; }
 }
